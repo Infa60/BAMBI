@@ -13,7 +13,7 @@ from Function.Base_function import (
 matplotlib.use("TkAgg")
 
 # Set path and load .mat file
-path = "/Users/mathieubourgeois/Documents/BAMBI"
+path = "/Users/mathieubourgeois/Documents/BAMBI_Data"
 result_file = f"{path}/resultats.mat"
 data = scipy.io.loadmat(result_file)
 
@@ -24,7 +24,6 @@ results_struct = data["results"][0, 0]
 data_rows = []
 hip_add_all = []
 hip_flex_all = []
-
 pdf_list = []
 x_list = []
 bambiID_list = results_struct.dtype.names  # Extract all Bambi IDs
@@ -35,32 +34,19 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     row["bambiID"] = bambiID
 
     # Extract statistical features for hip adduction/abduction
-    row["mean_hip_angle_add"] = results_struct[bambiID]["mean_hip_angle_add"][
-        0, 0
-    ].item()
-    row["std_hip_angle_add"] = results_struct[bambiID]["std_hip_angle_add"][0, 0].item()
-    row["skew_hip_angle_add"] = results_struct[bambiID]["skew_hip_angle_add"][
-        0, 0
-    ].item()
-    row["kurt_hip_angle_add"] = results_struct[bambiID]["kurt_hip_angle_add"][
-        0, 0
-    ].item()
-    row["mode_add"] = results_struct[bambiID]["mode_add"][0, 0].item()
+    row['mean_hip_angle_add'] = results_struct[bambiID]['mean_hip_angle_add'][0, 0].item()
+    row['std_hip_angle_add'] = results_struct[bambiID]['std_hip_angle_add'][0, 0].item()
+    row['skew_hip_angle_add'] = results_struct[bambiID]['skew_hip_angle_add'][0, 0].item()
+    row['kurt_hip_angle_add'] = results_struct[bambiID]['kurt_hip_angle_add'][0, 0].item()
+    row['mode_add'] = results_struct[bambiID]['mode_add'][0, 0].item()
 
     # Extract statistical features for hip flexion/extension
-    row["mean_hip_angle_flex"] = results_struct[bambiID]["mean_hip_angle_flex"][
-        0, 0
-    ].item()
-    row["std_hip_angle_flex"] = results_struct[bambiID]["std_hip_angle_flex"][
-        0, 0
-    ].item()
-    row["skew_hip_angle_flex"] = results_struct[bambiID]["skew_hip_angle_flex"][
-        0, 0
-    ].item()
-    row["kurt_hip_angle_flex"] = results_struct[bambiID]["kurt_hip_angle_flex"][
-        0, 0
-    ].item()
-    row["mode_flex"] = results_struct[bambiID]["mode_flex"][0, 0].item()
+    row['mean_hip_angle_flex'] = results_struct[bambiID]['mean_hip_angle_flex'][0, 0].item()
+    row['std_hip_angle_flex'] = results_struct[bambiID]['std_hip_angle_flex'][0, 0].item()
+    row['skew_hip_angle_flex'] = results_struct[bambiID]['skew_hip_angle_flex'][0, 0].item()
+    row['kurt_hip_angle_flex'] = results_struct[bambiID]['kurt_hip_angle_flex'][0, 0].item()
+    row['mode_flex'] = results_struct[bambiID]['mode_flex'][0, 0].item()
+
 
     # Append angle data to list for further PDF plotting
     hip_add = results_struct[bambiID]["hip_angle_add"][0, 0]
