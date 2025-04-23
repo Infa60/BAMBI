@@ -11,15 +11,18 @@ To run the Python script, you'll need the following:
 - `matplotlib`
 - `pandas`
 - `numpy`
-- `scipy.stats` (for skewness calculation)
-- `Function.Base_function` (a custom module for plotting)
+- `sklearn`
+- `seaborn`
+- `scipy.stats` 
+- `scipy.interpolate` 
+- `Function.Base_function`
 
 ### Installation Instructions
 
 You can install the required dependencies using pip:
 
 ```bash
-pip install scipy matplotlib pandas numpy
+pip install scipy matplotlib pandas numpy scikit-learn seaborn
 ```
 
 ### Custom Module
