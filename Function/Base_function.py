@@ -1,7 +1,6 @@
 import numpy as np
 from sklearn.decomposition import PCA
-import scipy
-from scipy.stats import chi2, shapiro
+from scipy.stats import chi2
 import os
 import matplotlib.pyplot as plt
 import matplotlib
@@ -12,7 +11,8 @@ from scipy.stats import skew, kurtosis
 import pandas as pd
 from matplotlib.ticker import MultipleLocator
 
-matplotlib.use('TkAgg')
+matplotlib.use("TkAgg")
+
 
 def find_index(column_name, column_list):
     if column_name in column_list:
@@ -36,12 +36,15 @@ def resample_size(data, target_length):
     data = np.array(data).flatten()
 
     # Create an interpolation function for the series
-    interp_function = interp1d(np.linspace(0, 1, len(data)), data, kind='linear', fill_value='extrapolate')
+    interp_function = interp1d(
+        np.linspace(0, 1, len(data)), data, kind="linear", fill_value="extrapolate"
+    )
 
     # Resample the series to the target length
     resampled_data = interp_function(np.linspace(0, 1, target_length))
 
     return resampled_data
+
 
 def ellipsoid_volume_and_points(points):
     """
@@ -64,7 +67,7 @@ def ellipsoid_volume_and_points(points):
     transformed = pca.transform(centered)
 
     # Mahalanobis distance squared
-    md_squared = np.sum((transformed / np.sqrt(pca.explained_variance_))**2, axis=1)
+    md_squared = np.sum((transformed / np.sqrt(pca.explained_variance_)) ** 2, axis=1)
 
     # Chi-squared threshold for 90% confidence in 3D
     threshold = chi2.ppf(0.90, df=3)
@@ -73,7 +76,7 @@ def ellipsoid_volume_and_points(points):
 
     # Volume of the ellipsoid
     axes_lengths = np.sqrt(pca.explained_variance_ * threshold)
-    volume_90 = (4/3) * np.pi * np.prod(axes_lengths)
+    volume_90 = (4 / 3) * np.pi * np.prod(axes_lengths)
 
     # Calculating statistics for output
     num_points = len(points)
@@ -82,33 +85,43 @@ def ellipsoid_volume_and_points(points):
 
     # Store in a dictionary for later use
     stats_outcome = {
-        'num_points': num_points,
-        'num_enclosed': num_enclosed,
-        'percentage_enclosed': percentage_enclosed,
-        'volume_90': volume_90
+        "num_points": num_points,
+        "num_enclosed": num_enclosed,
+        "percentage_enclosed": percentage_enclosed,
+        "volume_90": volume_90,
     }
 
+    return (
+        volume_90,
+        enclosed_points,
+        inside,
+        mean,
+        pca,
+        threshold,
+        stats_outcome,
+        points,
+    )
 
-    return volume_90, enclosed_points, inside, mean, pca, threshold, stats_outcome, points
 
-
-def plot_combined_pdf(hip_add_all, plot_name, folder_save_path, bins=50, color="lightcoral"):
+def plot_combined_pdf(
+    hip_add_all, plot_name, folder_save_path, bins=50, color="lightcoral"
+):
     """
-        Plot a combined histogram and kernel density estimate (PDF) of hip angles
-        pooled from all subjects.
+    Plot a combined histogram and kernel density estimate (PDF) of hip angles
+    pooled from all subjects.
 
-        Parameters:
-        ----------
-        hip_add_all : list of lists -- Hip angles for each subject (one list per subject).
+    Parameters:
+    ----------
+    hip_add_all : list of lists -- Hip angles for each subject (one list per subject).
 
-        plot_name : Base name used for the saved figure.
+    plot_name : Base name used for the saved figure.
 
-        folder_save_path : Path to the folder where the figure will be saved.
+    folder_save_path : Path to the folder where the figure will be saved.
 
-        bins : Number of histogram bins (default: 50).
+    bins : Number of histogram bins (default: 50).
 
-        color : Color used for both the histogram bars and KDE curve.
-        """
+    color : Color used for both the histogram bars and KDE curve.
+    """
 
     # Fusionne toutes les valeurs d’angle en une seule liste
     all_angles = [angle for bambi in hip_add_all for angle in bambi]
@@ -118,8 +131,9 @@ def plot_combined_pdf(hip_add_all, plot_name, folder_save_path, bins=50, color="
 
     # Crée la figure avec histogramme + estimation de densité (KDE)
     plt.figure(figsize=(8, 5))
-    sns.histplot(all_angles, bins=bins, kde=True, stat="density",
-                 color=color, edgecolor="black")
+    sns.histplot(
+        all_angles, bins=bins, kde=True, stat="density", color=color, edgecolor="black"
+    )
 
     # Titres et étiquettes
     plt.title(f"Distribution of Hip Angles {plot_name} - All Bambis")
@@ -135,34 +149,43 @@ def plot_combined_pdf(hip_add_all, plot_name, folder_save_path, bins=50, color="
     plt.close()
 
 
-def plot_mean_pdf_stat(hip_add_all, bambiID_list, plot_name, folder_save_path,
-                       grid_min=-90, grid_max=90, grid_points=500,
-                       show_std=True, all_line=True, target_length=7200):
+def plot_mean_pdf_stat(
+    hip_add_all,
+    bambiID_list,
+    plot_name,
+    folder_save_path,
+    grid_min=-90,
+    grid_max=90,
+    grid_points=500,
+    show_std=True,
+    all_line=True,
+    target_length=7200,
+):
     """
-    This function computes and plots the average Kernel Density Estimate (KDE)
-    of hip adduction/abduction angles across multiple subjects ("bambis"). It also
-    computes basic statistics (skewness and kurtosis) on the KDEs and saves them
-    in a CSV file. The final plot includes the mean PDF and optionally displays
-    individual subject curves and a ±1 standard deviation shaded region.
+        This function computes and plots the average Kernel Density Estimate (KDE)
+        of hip adduction/abduction angles across multiple subjects ("bambis"). It also
+        computes basic statistics (skewness and kurtosis) on the KDEs and saves them
+        in a CSV file. The final plot includes the mean PDF and optionally displays
+        individual subject curves and a ±1 standard deviation shaded region.
 
-Parameters:
-    hip_add_all : list of lists -- Hip angles over time for each subject (one list per subject).
+    Parameters:
+        hip_add_all : list of lists -- Hip angles over time for each subject (one list per subject).
 
-    bambiID_list : list of str -- Subject identifiers, in the same order as hip_add_all.
+        bambiID_list : list of str -- Subject identifiers, in the same order as hip_add_all.
 
-    plot_name : Base name for the output files (plot and CSV).
+        plot_name : Base name for the output files (plot and CSV).
 
-    folder_save_path : Folder path to save the outputs.
+        folder_save_path : Folder path to save the outputs.
 
-    grid_min, grid_max : Range of values for KDE evaluation (default: -90 to 90).
+        grid_min, grid_max : Range of values for KDE evaluation (default: -90 to 90).
 
-    grid_points : Number of points in the KDE grid.
+        grid_points : Number of points in the KDE grid.
 
-    show_std : If True, displays ±1 standard deviation shading.
+        show_std : If True, displays ±1 standard deviation shading.
 
-    all_line : If True, overlays all individual PDFs (default: True).
+        all_line : If True, overlays all individual PDFs (default: True).
 
-    target_length : Resampling length for all signals before KDE.
+        target_length : Resampling length for all signals before KDE.
     """
 
     # Create evaluation grid for KDE
@@ -221,25 +244,36 @@ Parameters:
 
     # ---- PLOTTING ----
     plt.figure(figsize=(8, 5))
-    plt.plot(grid, mean_pdf, label='Mean PDF', color='black', linewidth=2)
+    plt.plot(grid, mean_pdf, label="Mean PDF", color="black", linewidth=2)
 
     # Optionally show individual PDFs
     if all_line:
         for kde in kdes:
-            plt.plot(grid, kde, color='gray', alpha=0.2)
+            plt.plot(grid, kde, color="gray", alpha=0.2)
 
     # Optionally show ±1 std deviation as shaded area
     if show_std:
-        plt.fill_between(grid, lower_bound, upper_bound,
-                         color='black', alpha=0.3, label='±1 Std Dev')
+        plt.fill_between(
+            grid, lower_bound, upper_bound, color="black", alpha=0.3, label="±1 Std Dev"
+        )
 
     # Add box with mean and std of original signals
-    plt.text(0.02, 0.965,
-             f'Mean: {mean_val:.2f}\nSD: {std_val:.2f}',
-             transform=plt.gca().transAxes,
-             verticalalignment='top', horizontalalignment='left',
-             fontsize=12, linespacing=2,
-             bbox=dict(facecolor='white', edgecolor='lightgrey', boxstyle='round,pad=0.4', alpha=0.8))
+    plt.text(
+        0.02,
+        0.965,
+        f"Mean: {mean_val:.2f}\nSD: {std_val:.2f}",
+        transform=plt.gca().transAxes,
+        verticalalignment="top",
+        horizontalalignment="left",
+        fontsize=12,
+        linespacing=2,
+        bbox=dict(
+            facecolor="white",
+            edgecolor="lightgrey",
+            boxstyle="round,pad=0.4",
+            alpha=0.8,
+        ),
+    )
 
     # Final plot formatting
     plt.title(f"Mean PDF of Hip Angles {plot_name} Across Bambis")
@@ -257,46 +291,62 @@ Parameters:
     plt.close()
 
 
-def plot_ellipsoid_and_points_stickman(data, RANK, LANK, RKNE, LKNE, RPEL, LPEL, RSHO, LSHO,  RELB, LELB, LWRA, RWRA,
-                              bambiID,
-                              folder_save_path,
-                              interactive=True,
-                              inside_point=False,
-                              outside_point=False):
+def plot_ellipsoid_and_points_stickman(
+    data,
+    RANK,
+    LANK,
+    RKNE,
+    LKNE,
+    RPEL,
+    LPEL,
+    RSHO,
+    LSHO,
+    RELB,
+    LELB,
+    LWRA,
+    RWRA,
+    bambiID,
+    folder_save_path,
+    interactive=True,
+    inside_point=False,
+    outside_point=False,
+):
     """
-        Plot a 3D visualization combining:
-        - The mean positions of key body markers,
-        - A stickman model connecting those markers,
-        - A 90% confidence ellipsoid around a specific marker,
-        - And optionally the point cloud within or outside the ellipsoid.
+    Plot a 3D visualization combining:
+    - The mean positions of key body markers,
+    - A stickman model connecting those markers,
+    - A 90% confidence ellipsoid around a specific marker,
+    - And optionally the point cloud within or outside the ellipsoid.
 
-        Parameters
-        ----------
-        data : Marker trajectory data used to fit the ellipsoid (frames × 3).
+    Parameters
+    ----------
+    data : Marker trajectory data used to fit the ellipsoid (frames × 3).
 
-        RANK, LANK, RKNE, LKNE, RSHO, LSHO, RELB, LELB, RWRA, LWRA :
-            3D coordinates (N_frames × 3) for each body marker .
+    RANK, LANK, RKNE, LKNE, RSHO, LSHO, RELB, LELB, RWRA, LWRA :
+        3D coordinates (N_frames × 3) for each body marker .
 
-        bambiID : Identifier of the trial or subject, used to name the saved figure.
+    bambiID : Identifier of the trial or subject, used to name the saved figure.
 
-        folder_save_path : Directory where the figure will be saved .
+    folder_save_path : Directory where the figure will be saved .
 
-        interactive :  True, displays an interactive 3D plot; if False, saves a static image.
+    interactive :  True, displays an interactive 3D plot; if False, saves a static image.
 
-        inside_point : If True, shows all trajectory points.
+    inside_point : If True, shows all trajectory points.
 
-        outside_point : If True, shows only the points inside the ellipsoid.
-        """
+    outside_point : If True, shows only the points inside the ellipsoid.
+    """
 
     # Get the ellipsoid volume and points
-    (volume_90,
-     enclosed_points,
-     inside,
-     mean,
-     pca,
-     threshold,
-     stats_outcome,
-     points) = ellipsoid_volume_and_points(data)
+    (
+        volume_90,
+        enclosed_points,
+        inside,
+        mean,
+        pca,
+        threshold,
+        stats_outcome,
+        points,
+    ) = ellipsoid_volume_and_points(data)
 
     # Calculate the mean positions for each marker (RANK, LANK, RKNE, etc.)
     mean_RANK = np.mean(RANK, axis=0)
@@ -314,59 +364,190 @@ def plot_ellipsoid_and_points_stickman(data, RANK, LANK, RKNE, LKNE, RPEL, LPEL,
 
     # Create the 3D figure
     fig = plt.figure(figsize=(10, 8))
-    ax = fig.add_subplot(111, projection='3d')
+    ax = fig.add_subplot(111, projection="3d")
 
     ax.view_init(azim=30)  # Set the viewing angle for better visualization
 
     # Plot each key marker as a scatter plot point
     if mean[0] == mean_RANK[0]:
-        ax.scatter(mean_RANK[0], mean_RANK[1], mean_RANK[2], color='red', s=100, label='RANK', marker='o')
-        ax.scatter(mean_LANK[0], mean_LANK[1], mean_LANK[2], color='blue', s=100, label='LANK', marker='o')
+        ax.scatter(
+            mean_RANK[0],
+            mean_RANK[1],
+            mean_RANK[2],
+            color="red",
+            s=100,
+            label="RANK",
+            marker="o",
+        )
+        ax.scatter(
+            mean_LANK[0],
+            mean_LANK[1],
+            mean_LANK[2],
+            color="blue",
+            s=100,
+            label="LANK",
+            marker="o",
+        )
     elif mean[0] == mean_LANK[0]:
-        ax.scatter(mean_LANK[0], mean_LANK[1], mean_LANK[2], color='red', s=100, label='LANK', marker='o')
-        ax.scatter(mean_RANK[0], mean_RANK[1], mean_RANK[2], color='blue', s=100, label='RANK', marker='o')
+        ax.scatter(
+            mean_LANK[0],
+            mean_LANK[1],
+            mean_LANK[2],
+            color="red",
+            s=100,
+            label="LANK",
+            marker="o",
+        )
+        ax.scatter(
+            mean_RANK[0],
+            mean_RANK[1],
+            mean_RANK[2],
+            color="blue",
+            s=100,
+            label="RANK",
+            marker="o",
+        )
 
     # Plot the other body markers in the same way (RKNE, LKNE, RSHO, LSHO, etc.)
-    ax.scatter(mean_RKNE[0], mean_RKNE[1], mean_RKNE[2], color='blue', s=100, label='RKNE', marker='o')
-    ax.scatter(mean_LKNE[0], mean_LKNE[1], mean_LKNE[2], color='blue', s=100, label='LKNE', marker='o')
-    ax.scatter(mean_RSHO[0], mean_RSHO[1], mean_RSHO[2], color='blue', s=100, label='RSHO', marker='o')
-    ax.scatter(mean_LSHO[0], mean_LSHO[1], mean_LSHO[2], color='blue', s=100, label='LSHO', marker='o')
-    ax.scatter(mean_RPEL[0], mean_RPEL[1], mean_RPEL[2], color='blue', s=100, label='RPEL', marker='o')
-    ax.scatter(mean_LPEL[0], mean_LPEL[1], mean_LPEL[2], color='blue', s=100, label='LPEL', marker='o')
-    ax.scatter(mean_RELB[0], mean_RELB[1], mean_RELB[2], color='blue', s=100, label='RELB', marker='o')
-    ax.scatter(mean_LELB[0], mean_LELB[1], mean_LELB[2], color='blue', s=100, label='LELB', marker='o')
-    ax.scatter(mean_RWRA[0], mean_RWRA[1], mean_RWRA[2], color='blue', s=100, label='RWRA', marker='o')
-    ax.scatter(mean_LWRA[0], mean_LWRA[1], mean_LWRA[2], color='blue', s=100, label='LWRA', marker='o')
+    ax.scatter(
+        mean_RKNE[0],
+        mean_RKNE[1],
+        mean_RKNE[2],
+        color="blue",
+        s=100,
+        label="RKNE",
+        marker="o",
+    )
+    ax.scatter(
+        mean_LKNE[0],
+        mean_LKNE[1],
+        mean_LKNE[2],
+        color="blue",
+        s=100,
+        label="LKNE",
+        marker="o",
+    )
+    ax.scatter(
+        mean_RSHO[0],
+        mean_RSHO[1],
+        mean_RSHO[2],
+        color="blue",
+        s=100,
+        label="RSHO",
+        marker="o",
+    )
+    ax.scatter(
+        mean_LSHO[0],
+        mean_LSHO[1],
+        mean_LSHO[2],
+        color="blue",
+        s=100,
+        label="LSHO",
+        marker="o",
+    )
+    ax.scatter(
+        mean_RPEL[0],
+        mean_RPEL[1],
+        mean_RPEL[2],
+        color="blue",
+        s=100,
+        label="RPEL",
+        marker="o",
+    )
+    ax.scatter(
+        mean_LPEL[0],
+        mean_LPEL[1],
+        mean_LPEL[2],
+        color="blue",
+        s=100,
+        label="LPEL",
+        marker="o",
+    )
+    ax.scatter(
+        mean_RELB[0],
+        mean_RELB[1],
+        mean_RELB[2],
+        color="blue",
+        s=100,
+        label="RELB",
+        marker="o",
+    )
+    ax.scatter(
+        mean_LELB[0],
+        mean_LELB[1],
+        mean_LELB[2],
+        color="blue",
+        s=100,
+        label="LELB",
+        marker="o",
+    )
+    ax.scatter(
+        mean_RWRA[0],
+        mean_RWRA[1],
+        mean_RWRA[2],
+        color="blue",
+        s=100,
+        label="RWRA",
+        marker="o",
+    )
+    ax.scatter(
+        mean_LWRA[0],
+        mean_LWRA[1],
+        mean_LWRA[2],
+        color="blue",
+        s=100,
+        label="LWRA",
+        marker="o",
+    )
 
     # Create the stickman model by plotting lines between key body markers
-    ax.plot([mean_LSHO[0], mean_RSHO[0]],
-            [mean_LSHO[1], mean_RSHO[1]],
-            [mean_LSHO[2], mean_RSHO[2]],
-            color='black', linewidth=2)
-    ax.plot([mean_LSHO[0], mean_LPEL[0]],
-            [mean_LSHO[1], mean_LPEL[1]],
-            [mean_LSHO[2], mean_LPEL[2]],
-            color='black', linewidth=2)
-    ax.plot([mean_RPEL[0], mean_RSHO[0]],
-            [mean_RPEL[1], mean_RSHO[1]],
-            [mean_RPEL[2], mean_RSHO[2]],
-            color='black', linewidth=2)
-    ax.plot([mean_LPEL[0], mean_RPEL[0]],
-            [mean_LPEL[1], mean_RPEL[1]],
-            [mean_LPEL[2], mean_RPEL[2]],
-            color='black', linewidth=2)
+    ax.plot(
+        [mean_LSHO[0], mean_RSHO[0]],
+        [mean_LSHO[1], mean_RSHO[1]],
+        [mean_LSHO[2], mean_RSHO[2]],
+        color="black",
+        linewidth=2,
+    )
+    ax.plot(
+        [mean_LSHO[0], mean_LPEL[0]],
+        [mean_LSHO[1], mean_LPEL[1]],
+        [mean_LSHO[2], mean_LPEL[2]],
+        color="black",
+        linewidth=2,
+    )
+    ax.plot(
+        [mean_RPEL[0], mean_RSHO[0]],
+        [mean_RPEL[1], mean_RSHO[1]],
+        [mean_RPEL[2], mean_RSHO[2]],
+        color="black",
+        linewidth=2,
+    )
+    ax.plot(
+        [mean_LPEL[0], mean_RPEL[0]],
+        [mean_LPEL[1], mean_RPEL[1]],
+        [mean_LPEL[2], mean_RPEL[2]],
+        color="black",
+        linewidth=2,
+    )
 
     # Add other body segments using similar lines between markers (e.g., knees, elbows, wrists)
 
     # Plot all points inside or outside the ellipsoid, depending on the flag
     if inside_point:
-        ax.scatter(points[:, 0], points[:, 1], points[:, 2], color='blue', label='All points')
+        ax.scatter(
+            points[:, 0], points[:, 1], points[:, 2], color="blue", label="All points"
+        )
     if outside_point:
-        ax.scatter(enclosed_points[:, 0], enclosed_points[:, 1], enclosed_points[:, 2], color='green',
-                   label='Inside ellipsoid')
+        ax.scatter(
+            enclosed_points[:, 0],
+            enclosed_points[:, 1],
+            enclosed_points[:, 2],
+            color="green",
+            label="Inside ellipsoid",
+        )
 
     # Generate the ellipsoid surface
-    u, v = np.mgrid[0:2 * np.pi:30j, 0:np.pi:20j]
+    u, v = np.mgrid[0 : 2 * np.pi : 30j, 0 : np.pi : 20j]
     x = np.cos(u) * np.sin(v)
     y = np.sin(u) * np.sin(v)
     z = np.cos(v)
@@ -376,7 +557,7 @@ def plot_ellipsoid_and_points_stickman(data, RANK, LANK, RKNE, LKNE, RPEL, LPEL,
     ellipsoid_scaled = ellipsoid_unit * axes_lengths  # Scale the ellipsoid
 
     # Rotate the ellipsoid using PCA components
-    ellipsoid_rotated = np.einsum('ijk,lk->ijl', ellipsoid_scaled, pca.components_)
+    ellipsoid_rotated = np.einsum("ijk,lk->ijl", ellipsoid_scaled, pca.components_)
 
     # Translate the ellipsoid to the mean position of the markers
     x_e = ellipsoid_rotated[..., 0] + mean[0]
@@ -384,22 +565,30 @@ def plot_ellipsoid_and_points_stickman(data, RANK, LANK, RKNE, LKNE, RPEL, LPEL,
     z_e = ellipsoid_rotated[..., 2] + mean[2]
 
     # Plot the ellipsoid surface
-    ax.plot_surface(x_e, y_e, z_e, color='red', alpha=0.3)
+    ax.plot_surface(x_e, y_e, z_e, color="red", alpha=0.3)
 
     # Set axis labels
-    ax.set_xlabel('X Axis')
-    ax.set_ylabel('Y Axis')
-    ax.set_zlabel('Z Axis')
+    ax.set_xlabel("X Axis")
+    ax.set_ylabel("Y Axis")
+    ax.set_zlabel("Z Axis")
 
     # Fix the aspect ratio so that the axes are equally scaled
-    all_points = np.array([
-        mean_RANK, mean_LANK,
-        mean_RKNE, mean_LKNE,
-        mean_RSHO, mean_LSHO,
-        mean_RPEL, mean_LPEL,
-        mean_RELB, mean_LELB,
-        mean_RWRA, mean_LWRA
-    ])
+    all_points = np.array(
+        [
+            mean_RANK,
+            mean_LANK,
+            mean_RKNE,
+            mean_LKNE,
+            mean_RSHO,
+            mean_LSHO,
+            mean_RPEL,
+            mean_LPEL,
+            mean_RELB,
+            mean_LELB,
+            mean_RWRA,
+            mean_LWRA,
+        ]
+    )
 
     x_limits = [np.min(all_points[:, 0]), np.max(all_points[:, 0])]
     y_limits = [np.min(all_points[:, 1]), np.max(all_points[:, 1])]
@@ -410,11 +599,14 @@ def plot_ellipsoid_and_points_stickman(data, RANK, LANK, RKNE, LKNE, RPEL, LPEL,
     y_middle = np.mean(y_limits)
     z_middle = np.mean(z_limits)
 
-    max_range = max(
-        x_limits[1] - x_limits[0],
-        y_limits[1] - y_limits[0],
-        z_limits[1] - z_limits[0]
-    ) / 2
+    max_range = (
+        max(
+            x_limits[1] - x_limits[0],
+            y_limits[1] - y_limits[0],
+            z_limits[1] - z_limits[0],
+        )
+        / 2
+    )
 
     ax.set_xlim(x_middle - max_range, x_middle + max_range)
     ax.set_ylim(y_middle - max_range, y_middle + max_range)
