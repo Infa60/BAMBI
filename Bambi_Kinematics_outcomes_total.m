@@ -16,7 +16,7 @@
 %  marker in the body plane
 % - Compute hip flexion/extension based on a projection of the ankle
 %  marker in the body plane
-% - Compute CDF PDF et KDE for both
+% - Compute and plot CDF PDF et KDE for both
 % - Compute ankle velocity across time with a filtering
 %
 % Outputs:
