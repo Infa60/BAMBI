@@ -1,13 +1,17 @@
 import scipy.io
 import matplotlib
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from scipy.stats import skew
-from Function.Base_function import (
-    plot_ellipsoid_and_points_stickman,
-    plot_combined_pdf,
-    plot_mean_pdf_stat,
+from Function.Ellipsoid import (
+    plot_ellipsoid_and_points_stickman
 )
+from Function.Plot import (
+    plot_combined_pdf,
+    plot_mean_pdf_stat
+)
+from Function.Kicking_function import kicking
 
 # Set matplotlib backend
 matplotlib.use("TkAgg")
@@ -68,6 +72,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     RELB = results_struct[bambiID]["RELB"][0, 0]
     LWRA = results_struct[bambiID]["LWRA"][0, 0]
     RWRA = results_struct[bambiID]["RWRA"][0, 0]
+    time_duration = results_struct[bambiID]["time_duration"][0][0][0]
 
     # Calculate total distance traveled by the ankle
     distances = np.linalg.norm(np.diff(pos_ankle, axis=0), axis=1)
@@ -94,6 +99,11 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         inside_point=False,
         outside_point=False,
     )
+
+    kicking_cycle_data = kicking(LPEL,LANK, time_duration, 1)
+    df_kicks = pd.DataFrame(kicking_cycle_data)
+
+    mean_values = df_kicks.mean(numeric_only=True)
 
     # Save geometric and velocity distribution stats
     row["num_points"] = stats["num_points"]
