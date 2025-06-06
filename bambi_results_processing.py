@@ -11,7 +11,8 @@ from Function.Plot import (
     plot_combined_pdf,
     plot_mean_pdf_stat
 )
-from Function.Kicking_function import kicking
+from Function.Kicking_function import kicking, get_mean_and_std
+from Function.Members_contact import distance_foot_foot
 
 # Set matplotlib backend
 matplotlib.use("TkAgg")
@@ -100,10 +101,14 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         outside_point=False,
     )
 
-    kicking_cycle_data = kicking(LPEL,LANK, time_duration, 1)
-    df_kicks = pd.DataFrame(kicking_cycle_data)
+    ## Add in outcome
+    kicking_cycle_data_left, distance_kicking_left = kicking(LPEL,LANK, time_duration, 1)
+    mean_std_kicking_values_left = get_mean_and_std(kicking_cycle_data_left)
 
-    mean_values = df_kicks.mean(numeric_only=True)
+    kicking_cycle_data_right, distance_kicking_right = kicking(RPEL,RANK, time_duration, 1)
+    mean_std_kicking_values_right = get_mean_and_std(kicking_cycle_data_right)
+
+    n_events, total_time, event_durations = distance_foot_foot(LANK, RANK, threshold=100, time_vector=time_duration)
 
     # Save geometric and velocity distribution stats
     row["num_points"] = stats["num_points"]

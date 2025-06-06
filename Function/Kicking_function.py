@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib
+import pandas as pd
 from scipy.signal import find_peaks
 matplotlib.use("TkAgg")
 
@@ -10,57 +11,96 @@ def kicking(
         time_duration,
         leg_length
             ):
+    # Compute the Euclidean distance between pelvis and ankle at each time frame
     distance_pelv_ank = np.linalg.norm(pelvis_marker - ankle_marker, axis=1)
-    distance_pelv_ank_norm = distance_pelv_ank/leg_length
+
+    # Normalize the distance by the leg length to account for subject variability
+    distance_pelv_ank_norm = distance_pelv_ank / leg_length
+
+    # Detect peaks in the normalized distance signal (corresponding to extension phases)
+    # Thresholds are adaptively set based on the 50th percentile and minimum peak prominence
     peaks, _ = find_peaks(
-                        distance_pelv_ank_norm,
-                        height=np.percentile(distance_pelv_ank_norm, 50),
-                        distance=20,
-                        prominence=10
-                        )
+        distance_pelv_ank_norm,
+        height=np.percentile(distance_pelv_ank_norm, 50),
+        distance=20,          # Minimum number of frames between two kicks
+        prominence=10         # Minimum required prominence to filter out noise
+    )
 
     kicking_cycle_data = []
 
+    # Analyze each kick cycle between two consecutive extension peaks
     for i in range(len(peaks) - 1):
         start = peaks[i]
         end = peaks[i + 1]
 
+        # Extract the segment of the signal and corresponding time
         segment = distance_pelv_ank_norm[start:end]
         segment_time = time_duration[start:end]
 
         if len(segment) < 2:
-            continue
+            continue  # Skip cycles that are too short
 
-        # 1. Amplitude (mm)
+        # 1. Compute the amplitude of the kicking cycle
+        # Defined as the distance from the peak to the minimum (flexion phase)
         min_idx = np.argmin(segment)
         min_val = segment[min_idx]
         amplitude = distance_pelv_ank_norm[start] - min_val
 
-        # 2. Durée du cycle (en secondes)
+        # 2. Compute the duration of the cycle (in seconds)
         duration = segment_time[-1] - segment_time[0]
 
-        # 3. Vitesse (dérivée)
-        velocity = np.gradient(segment, segment_time)
-        max_velocity = np.max(np.abs(velocity))  # vitesse maximale absolue
-
-        # 4. Pente moyenne (sur la phase extension ou flexion)
-        # Exemple : extension = du min vers le pic
+        # 3. Compute average steepness of the extension phase
+        # Slope between minimum (flexion) and maximum (extension) position
         if min_idx < len(segment) - 1:
             ext_segment = segment[min_idx:]
             ext_time = segment_time[min_idx:]
             steepness = (ext_segment[-1] - ext_segment[0]) / (ext_time[-1] - ext_time[0])
         else:
-            steepness = np.nan
+            steepness = np.nan  # Not computable if extension segment is empty
 
-        # 5. Stocker les résultats
+        # 4. Velocity
+        # Phase de flexion (du pic initial jusqu’au minimum local)
+        if min_idx > 1:
+            flex_segment = segment[:min_idx + 1]
+            flex_time = segment_time[:min_idx + 1]
+            flex_velocity = np.gradient(flex_segment, flex_time)
+            flexion_speed = np.mean(np.abs(flex_velocity))
+        else:
+            flexion_speed = np.nan
+
+        # Phase d’extension (du minimum jusqu’au pic suivant)
+        if min_idx < len(segment) - 2:
+            ext_segment = segment[min_idx:]
+            ext_time = segment_time[min_idx:]
+            ext_velocity = np.gradient(ext_segment, ext_time)
+            extension_speed = np.mean(np.abs(ext_velocity))
+        else:
+            extension_speed = np.nan
+
+        # 5. Store the extracted features for this kicking cycle
         kicking_cycle_data.append({
-            'cycle_start_time': segment_time[0],
-            'cycle_end_time': segment_time[-1],
             'amplitude': amplitude,
             'duration': duration,
-            'max_velocity': max_velocity,
-            'steepness': steepness
+            'steepness': steepness,
+            'flexion_speed': flexion_speed,
+            'extension_speed': extension_speed
         })
 
+    # Return list of cycle-level features and the full normalized distance signal
+    return kicking_cycle_data, distance_pelv_ank_norm
 
-    return kicking_cycle_data
+def get_mean_and_std(kicking_cycle_data):
+    # Convert the list of dicts to a DataFrame
+    df_kicking_cycle = pd.DataFrame(kicking_cycle_data)
+
+    # Compute mean and standard deviation for numeric columns
+    mean_values_kicking = df_kicking_cycle.mean(numeric_only=True)
+    std_values_kicking = df_kicking_cycle.std(numeric_only=True)
+
+    # Combine into a single DataFrame
+    mean_std_kicking_values = pd.DataFrame({
+        "mean": mean_values_kicking,
+        "std": std_values_kicking
+    })
+
+    return mean_std_kicking_values
