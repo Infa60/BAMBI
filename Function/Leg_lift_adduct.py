@@ -198,7 +198,7 @@ def plot_mean_pdf_stat(
     plt.close()
 
 
-def ankle_high(ankle_marker, pelvis_marker, time_vector, leg_length, high_threshold, max_flexion):
+def ankle_high(ankle_marker, pelvis_marker, time_vector, leg_length, high_threshold, max_flexion, plot = False):
 
     thigh_proportion = 55
     thigh_length = leg_length * thigh_proportion/100
@@ -214,19 +214,20 @@ def ankle_high(ankle_marker, pelvis_marker, time_vector, leg_length, high_thresh
 
     common_intervals = intersect_intervals(close_to_max_extension_interval, ankle_in_elevation_interval)
 
-    plt.figure(figsize=(12, 4))
-    plt.plot(time_vector, ankle_marker[:,2], label="Ankle", color='blue')
-    plt.plot(time_vector, distance_pelv_ank, label="Distance Pelvis Ankle", color='red')
+    if plot == True:
+        plt.figure(figsize=(12, 4))
+        plt.plot(time_vector, ankle_marker[:,2], label="Ankle", color='blue')
+        plt.plot(time_vector, distance_pelv_ank, label="Distance Pelvis Ankle", color='red')
 
-    for start, end in common_intervals:
-        plt.axvspan(time_vector[start], time_vector[end], color='orange', alpha=0.3)
+        for start, end in common_intervals:
+            plt.axvspan(time_vector[start], time_vector[end], color='orange', alpha=0.3)
 
-    plt.xlabel("Time (s)")
-    plt.ylabel("Signal")
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+        plt.xlabel("Time (s)")
+        plt.ylabel("Signal")
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
 
     lift_with_leg_extend = analyze_intervals_duration(common_intervals, time_vector)
 

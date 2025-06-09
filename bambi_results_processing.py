@@ -13,7 +13,7 @@ from Function.Leg_lift_adduct import (
     ankle_high
 )
 from Function.Kicking_function import kicking, get_mean_and_std
-from Function.Members_contact import distance_foot_foot, distance_hand_hand
+from Function.Members_contact import distance_foot_foot, distance_hand_hand, distance_hand_foot
 
 # Set matplotlib backend
 matplotlib.use("TkAgg")
@@ -119,14 +119,17 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     mean_std_kicking_values_right = get_mean_and_std(kicking_cycle_data_right)
 
     ## Foot-foot contact
-    foot_foot_contact = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold=100, time_vector=time_duration)
+    foot_foot_contact = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=100, threshold_knee=1, time_vector=time_duration)
 
     ## Hand-hand contact
     hand_hand_contact = distance_hand_hand(LWRA, RWRA, threshold=200, time_vector=time_duration)
 
     ## Leg lifting
-    lift_with_leg_extend = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30)
-    print(lift_with_leg_extend)
+    right_lift_with_leg_extend = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30)
+    left_lift_with_leg_extend = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30)
+
+    ## Hand-foot contact
+    distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold=100, time_vector=time_duration, plot=True)
 
 # Convert all collected data into a DataFrame
 df = pd.DataFrame(data_rows)
