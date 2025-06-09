@@ -11,6 +11,26 @@ def kicking(
         time_duration,
         leg_length
             ):
+    """
+        Analyze kicking movements based on the distance between pelvis and ankle markers.
+
+        This function identifies kicking cycles (from peak to peak), and extracts for each cycle:
+        - Amplitude
+        - Duration
+        - Steepness of extension
+        - Mean flexion speed (based on point-wise gradient)
+        - Mean extension speed (based on point-wise gradient)
+
+        Parameters:
+            pelvis_marker:
+            ankle_marker:
+            time_duration: time vector (in seconds)
+            leg_length:  subject-specific leg length for normalization
+
+        Returns:
+            kicking_cycle_data: list of dicts – one per cycle with extracted features
+            distance_pelv_ank_norm: normalized pelvis-ankle distance over time
+        """
     # Compute the Euclidean distance between pelvis and ankle at each time frame
     distance_pelv_ank = np.linalg.norm(pelvis_marker - ankle_marker, axis=1)
 
@@ -49,17 +69,15 @@ def kicking(
         # 2. Compute the duration of the cycle (in seconds)
         duration = segment_time[-1] - segment_time[0]
 
-        # 3. Compute average steepness of the extension phase
-        # Slope between minimum (flexion) and maximum (extension) position
+        # 3. Compute average steepness of the extension phase (slope between flexion and extension)
         if min_idx < len(segment) - 1:
             ext_segment = segment[min_idx:]
             ext_time = segment_time[min_idx:]
             steepness = (ext_segment[-1] - ext_segment[0]) / (ext_time[-1] - ext_time[0])
         else:
-            steepness = np.nan  # Not computable if extension segment is empty
+            steepness = np.nan
 
-        # 4. Velocity
-        # Phase de flexion (du pic initial jusqu’au minimum local)
+        # 4. Compute mean velocity (using point-wise gradient) for flexion phase
         if min_idx > 1:
             flex_segment = segment[:min_idx + 1]
             flex_time = segment_time[:min_idx + 1]
@@ -68,7 +86,7 @@ def kicking(
         else:
             flexion_speed = np.nan
 
-        # Phase d’extension (du minimum jusqu’au pic suivant)
+        # Compute mean velocity (using point-wise gradient) for extension phase
         if min_idx < len(segment) - 2:
             ext_segment = segment[min_idx:]
             ext_time = segment_time[min_idx:]
