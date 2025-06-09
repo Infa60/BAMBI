@@ -129,7 +129,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     left_lift_with_leg_extend = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30)
 
     ## Hand-foot contact
-    distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold=100, time_vector=time_duration, plot=True)
+    hand_foot_contact = distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold=100, time_vector=time_duration, plot=True)
 
 # Convert all collected data into a DataFrame
 df = pd.DataFrame(data_rows)
