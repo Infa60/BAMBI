@@ -12,7 +12,7 @@ from Function.Plot import (
     plot_mean_pdf_stat
 )
 from Function.Kicking_function import kicking, get_mean_and_std
-from Function.Members_contact import distance_foot_foot
+from Function.Members_contact import distance_foot_foot, distance_hand_hand
 
 # Set matplotlib backend
 matplotlib.use("TkAgg")
@@ -51,7 +51,6 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     row['skew_hip_angle_flex'] = results_struct[bambiID]['skew_hip_angle_flex'][0, 0].item()
     row['kurt_hip_angle_flex'] = results_struct[bambiID]['kurt_hip_angle_flex'][0, 0].item()
     row['mode_flex'] = results_struct[bambiID]['mode_flex'][0, 0].item()
-
 
     # Append angle data to list for further PDF plotting
     hip_add = results_struct[bambiID]["hip_angle_add"][0, 0]
@@ -101,15 +100,6 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         outside_point=False,
     )
 
-    ## Add in outcome
-    kicking_cycle_data_left, distance_kicking_left = kicking(LPEL,LANK, time_duration, 1)
-    mean_std_kicking_values_left = get_mean_and_std(kicking_cycle_data_left)
-
-    kicking_cycle_data_right, distance_kicking_right = kicking(RPEL,RANK, time_duration, 1)
-    mean_std_kicking_values_right = get_mean_and_std(kicking_cycle_data_right)
-
-    n_events, total_time, event_durations = distance_foot_foot(LANK, RANK, threshold=100, time_vector=time_duration)
-
     # Save geometric and velocity distribution stats
     row["num_points"] = stats["num_points"]
     row["num_enclosed"] = stats["num_enclosed"]
@@ -119,6 +109,20 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
     # Add the row to the list
     data_rows.append(row)
+
+    ## Add in outcome
+    kicking_cycle_data_left, distance_kicking_left = kicking(LPEL,LANK, time_duration, 1)
+    mean_std_kicking_values_left = get_mean_and_std(kicking_cycle_data_left)
+
+    kicking_cycle_data_right, distance_kicking_right = kicking(RPEL,RANK, time_duration, 1)
+    mean_std_kicking_values_right = get_mean_and_std(kicking_cycle_data_right)
+
+    n_events, total_time, event_durations = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold=100, time_vector=time_duration)
+
+    n_events, total_time, event_durations = distance_hand_hand(LWRA, RWRA, threshold=100, time_vector=time_duration, plot=True)
+
+    print(n_events, event_durations)
+
 
 # Convert all collected data into a DataFrame
 df = pd.DataFrame(data_rows)
