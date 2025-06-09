@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+from Function.Base_function import get_threshold_intervals, analyze_intervals_duration
 matplotlib.use("TkAgg")
 
 
@@ -26,31 +27,9 @@ def distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold, time_vector, plot=Fals
 
     distance_knee_knee = np.linalg.norm(LKNE - RKNE, axis=1)
 
-    # 2. Identify frames under the threshold
-    foot_in_contact = distance_foot_foot < threshold
+    foot_foot_interval = get_threshold_intervals(distance_foot_foot, threshold, "below")
 
-    # 3. Detect transitions using difference
-    transitions = np.diff(foot_in_contact.astype(int))
-    start_idxs = np.where(transitions == 1)[0] + 1  # +1 because diff shifts index
-    end_idxs = np.where(transitions == -1)[0] + 1
-
-    # Handle edge cases (if starts under threshold or ends under threshold)
-    if foot_in_contact[0]:
-        start_idxs = np.insert(start_idxs, 0, 0)
-    if foot_in_contact[-1]:
-        end_idxs = np.append(end_idxs, len(foot_in_contact) - 1)
-
-    # 4. Count events
-    count_close = len(start_idxs)
-
-    # 5. Durations per event
-    durations_per_event = []
-    for start, end in zip(start_idxs, end_idxs):
-        duration = time_vector[end] - time_vector[start]
-        durations_per_event.append(duration)
-
-    # 6. Total time under threshold
-    total_time_under_thresh = np.sum(durations_per_event)
+    members_contact = analyze_intervals_duration(foot_foot_interval, time_vector)
 
     if plot == True:
         # 7. Optionnal plot of distance foot-foot
@@ -65,7 +44,7 @@ def distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold, time_vector, plot=Fals
         plt.tight_layout()
         plt.show()
 
-    return count_close, total_time_under_thresh, durations_per_event
+    return members_contact
 
 def distance_hand_hand(LWRA, RWRA, threshold, time_vector, plot=False):
     """
@@ -87,32 +66,10 @@ def distance_hand_hand(LWRA, RWRA, threshold, time_vector, plot=False):
     # 1. Compute the frame-by-frame Euclidean distance
     distance_hand_hand = np.linalg.norm(LWRA - RWRA, axis=1)
 
-    # 2. Identify frames under the threshold
-    hand_in_contact = distance_hand_hand < threshold
-
-    # 3. Detect transitions using difference
-    transitions = np.diff(hand_in_contact.astype(int))
-    start_idxs = np.where(transitions == 1)[0] + 1  # +1 because diff shifts index
-    end_idxs = np.where(transitions == -1)[0] + 1
-
-    # Handle edge cases (if starts under threshold or ends under threshold)
-    if hand_in_contact[0]:
-        start_idxs = np.insert(start_idxs, 0, 0)
-    if hand_in_contact[-1]:
-        end_idxs = np.append(end_idxs, len(hand_in_contact) - 1)
+    hand_hand_interval = get_threshold_intervals(distance_hand_hand, threshold, "below")
 
     # 4. Count events
-    count_close = len(start_idxs)
-
-    # 5. Durations per event
-    durations_per_event = []
-    for start, end in zip(start_idxs, end_idxs):
-        duration = time_vector[end] - time_vector[start]
-        durations_per_event.append(duration)
-
-    # 6. Total time under threshold
-    total_time_under_thresh = np.sum(durations_per_event)
-
+    members_contact = analyze_intervals_duration(hand_hand_interval, time_vector)
 
     if plot == True:
         # 7. Optionnal plot of distance hand-hand
@@ -126,4 +83,4 @@ def distance_hand_hand(LWRA, RWRA, threshold, time_vector, plot=False):
         plt.tight_layout()
         plt.show()
 
-    return count_close, total_time_under_thresh, durations_per_event
+    return members_contact

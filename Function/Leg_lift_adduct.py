@@ -6,7 +6,7 @@ import seaborn as sns
 from scipy.stats import gaussian_kde
 from scipy.stats import skew, kurtosis
 import pandas as pd
-from Function.Base_function import resample_size
+from Function.Base_function import resample_size, get_threshold_intervals, intersect_intervals, analyze_intervals_duration
 
 matplotlib.use("TkAgg")
 
@@ -198,3 +198,36 @@ def plot_mean_pdf_stat(
     plt.close()
 
 
+def ankle_high(ankle_marker, pelvis_marker, time_vector, leg_length, high_threshold, max_flexion):
+
+    thigh_proportion = 55
+    thigh_length = leg_length * thigh_proportion/100
+
+    range_extension = np.sqrt(thigh_length**2 + (leg_length-thigh_length)**2 - 2 * thigh_length * (leg_length-thigh_length) * np.cos(np.radians(180-max_flexion)))
+
+    # Compute the Euclidean distance between pelvis and ankle at each time frame
+    distance_pelv_ank = np.linalg.norm(pelvis_marker - ankle_marker, axis=1)
+
+    close_to_max_extension_interval = get_threshold_intervals(distance_pelv_ank, range_extension, mode="above")
+
+    ankle_in_elevation_interval = get_threshold_intervals(ankle_marker[:,2], high_threshold, mode="above")
+
+    common_intervals = intersect_intervals(close_to_max_extension_interval, ankle_in_elevation_interval)
+
+    plt.figure(figsize=(12, 4))
+    plt.plot(time_vector, ankle_marker[:,2], label="Ankle", color='blue')
+    plt.plot(time_vector, distance_pelv_ank, label="Distance Pelvis Ankle", color='red')
+
+    for start, end in common_intervals:
+        plt.axvspan(time_vector[start], time_vector[end], color='orange', alpha=0.3)
+
+    plt.xlabel("Time (s)")
+    plt.ylabel("Signal")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    lift_with_leg_extend = analyze_intervals_duration(common_intervals, time_vector)
+
+    return lift_with_leg_extend

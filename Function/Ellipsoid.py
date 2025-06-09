@@ -403,7 +403,7 @@ def plot_ellipsoid_and_points_stickman(
     else:
         filename_to_save = f"{bambiID}_ankle_position_ellipsoid.png"
         save_path = os.path.join(folder_save_path, filename_to_save)
-        fig.savefig(save_path, dpi=300, pad_inches=0)
+        # fig.savefig(save_path, dpi=300, pad_inches=0)
         print(f"Static plot saved to {os.path.abspath(save_path)}")
         plt.close()
 

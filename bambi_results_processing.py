@@ -7,9 +7,10 @@ from scipy.stats import skew
 from Function.Ellipsoid import (
     plot_ellipsoid_and_points_stickman
 )
-from Function.Plot import (
+from Function.Leg_lift_adduct import (
     plot_combined_pdf,
-    plot_mean_pdf_stat
+    plot_mean_pdf_stat,
+    ankle_high
 )
 from Function.Kicking_function import kicking, get_mean_and_std
 from Function.Members_contact import distance_foot_foot, distance_hand_hand
@@ -110,19 +111,22 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     # Add the row to the list
     data_rows.append(row)
 
-    ## Add in outcome
+    ## Kicking
     kicking_cycle_data_left, distance_kicking_left = kicking(LPEL,LANK, time_duration, 1)
     mean_std_kicking_values_left = get_mean_and_std(kicking_cycle_data_left)
 
     kicking_cycle_data_right, distance_kicking_right = kicking(RPEL,RANK, time_duration, 1)
     mean_std_kicking_values_right = get_mean_and_std(kicking_cycle_data_right)
 
-    n_events, total_time, event_durations = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold=100, time_vector=time_duration)
+    ## Foot-foot contact
+    foot_foot_contact = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold=100, time_vector=time_duration)
 
-    n_events, total_time, event_durations = distance_hand_hand(LWRA, RWRA, threshold=100, time_vector=time_duration, plot=True)
+    ## Hand-hand contact
+    hand_hand_contact = distance_hand_hand(LWRA, RWRA, threshold=200, time_vector=time_duration)
 
-    print(n_events, event_durations)
-
+    ## Leg lifting
+    lift_with_leg_extend = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30)
+    print(lift_with_leg_extend)
 
 # Convert all collected data into a DataFrame
 df = pd.DataFrame(data_rows)
