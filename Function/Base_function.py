@@ -130,3 +130,25 @@ def analyze_intervals_duration(intervals, time_vector):
         'time_in_contact': total_time,
         'durations_per_event': durations_per_event
     }
+
+# === STEP 1: Compute angular threshold from cohort-wide shoulder widths ===
+
+# Half of inter-shoulder distances (in meters) across baby
+inter_shoulder_half_lengths = np.array([...])
+
+# 1. Input parameters
+desired_offset_m = 20
+
+# 2. Compute the angle in radians using arctangent
+angle_threshold_rad = np.arctan(desired_offset_m / np.mean(inter_shoulder_half_lengths))
+
+# 3. Convert to degrees for easier interpretation
+angle_threshold_deg = np.degrees(angle_threshold_rad)
+
+# === STEP 2: For a specific baby, compute their personalized max offset ===
+
+# Half shoulder width for the current subject
+half_shoulder_width_baby = 0.085  # replace with actual measurement
+
+# Max lateral offset allowed before calling it "misalignment"
+max_offset = np.tan(angle_threshold_rad) * half_shoulder_width_baby

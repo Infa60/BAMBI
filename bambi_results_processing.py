@@ -14,6 +14,7 @@ from Function.Leg_lift_adduct import (
 )
 from Function.Kicking_function import kicking, get_mean_and_std
 from Function.Members_contact import distance_foot_foot, distance_hand_hand, distance_hand_foot
+from Function.Body_symmetry import body_symmetry
 
 # Set matplotlib backend
 matplotlib.use("TkAgg")
@@ -96,6 +97,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         RWRA,
         bambiID,
         folder_save_path=f"{path}/Outcomes_plot",
+        confidence_threshold=0.90,
         interactive=False,
         inside_point=False,
         outside_point=False,
@@ -129,7 +131,34 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     left_lift_with_leg_extend = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30)
 
     ## Hand-foot contact
-    hand_foot_contact = distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold=100, time_vector=time_duration, plot=True)
+    hand_foot_contact = distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold=100, time_vector=time_duration, plot=False)
+
+    ## Wrist ellipsoid
+    stats = plot_ellipsoid_and_points_stickman(
+        RWRA,
+        RANK,
+        LANK,
+        RKNE,
+        LKNE,
+        RPEL,
+        LPEL,
+        RSHO,
+        LSHO,
+        RELB,
+        LELB,
+        LWRA,
+        RWRA,
+        bambiID,
+        folder_save_path=f"{path}/Wrist_Outcomes_plot",
+        confidence_threshold=0.99,
+        interactive=False,
+        inside_point=False,
+        outside_point=False,
+    )
+
+    ## Body symmetry
+    body_symmetry(LPEL, RPEL, LSHO, RSHO,40, time_vector=time_duration, plot=True)
+
 
 # Convert all collected data into a DataFrame
 df = pd.DataFrame(data_rows)
