@@ -8,7 +8,7 @@ from matplotlib.ticker import MultipleLocator
 matplotlib.use("TkAgg")
 
 
-def ellipsoid_volume_and_points(points):
+def ellipsoid_volume_and_points(points, confidence_threshold):
     """
     Computes the 90% ellipsoid volume and the points enclosed within that ellipsoid
     for a given marker.
@@ -32,7 +32,7 @@ def ellipsoid_volume_and_points(points):
     md_squared = np.sum((transformed / np.sqrt(pca.explained_variance_)) ** 2, axis=1)
 
     # Chi-squared threshold for 90% confidence in 3D
-    threshold = chi2.ppf(0.90, df=3)
+    threshold = chi2.ppf(confidence_threshold, df=3)
     inside = md_squared <= threshold
     enclosed_points = points[inside]
 
@@ -67,7 +67,7 @@ def ellipsoid_volume_and_points(points):
 
 
 def plot_ellipsoid_and_points_stickman(
-    data,
+    point_of_interest,
     RANK,
     LANK,
     RKNE,
@@ -82,6 +82,7 @@ def plot_ellipsoid_and_points_stickman(
     RWRA,
     bambiID,
     folder_save_path,
+    confidence_threshold,
     interactive=True,
     inside_point=False,
     outside_point=False,
@@ -95,7 +96,7 @@ def plot_ellipsoid_and_points_stickman(
 
     Parameters
     ----------
-    data : Marker trajectory data used to fit the ellipsoid (frames × 3).
+    point_of_interest : Marker trajectory point_of_interest used to fit the ellipsoid (frames × 3).
 
     RANK, LANK, RKNE, LKNE, RSHO, LSHO, RELB, LELB, RWRA, LWRA :
         3D coordinates (N_frames × 3) for each body marker .
@@ -110,6 +111,7 @@ def plot_ellipsoid_and_points_stickman(
 
     outside_point : If True, shows only the points inside the ellipsoid.
     """
+    os.makedirs(folder_save_path, exist_ok=True)
 
     # Get the ellipsoid volume and points
     (
@@ -121,7 +123,7 @@ def plot_ellipsoid_and_points_stickman(
         threshold,
         stats_outcome,
         points,
-    ) = ellipsoid_volume_and_points(data)
+    ) = ellipsoid_volume_and_points(point_of_interest, confidence_threshold = confidence_threshold)
 
     # Calculate the mean positions for each marker (RANK, LANK, RKNE, etc.)
     mean_RANK = np.mean(RANK, axis=0)
@@ -143,169 +145,48 @@ def plot_ellipsoid_and_points_stickman(
 
     ax.view_init(azim=30)  # Set the viewing angle for better visualization
 
-    # Plot each key marker as a scatter plot point
-    if mean[0] == mean_RANK[0]:
-        ax.scatter(
-            mean_RANK[0],
-            mean_RANK[1],
-            mean_RANK[2],
-            color="red",
-            s=100,
-            label="RANK",
-            marker="o",
-        )
-        ax.scatter(
-            mean_LANK[0],
-            mean_LANK[1],
-            mean_LANK[2],
-            color="blue",
-            s=100,
-            label="LANK",
-            marker="o",
-        )
-    elif mean[0] == mean_LANK[0]:
-        ax.scatter(
-            mean_LANK[0],
-            mean_LANK[1],
-            mean_LANK[2],
-            color="red",
-            s=100,
-            label="LANK",
-            marker="o",
-        )
-        ax.scatter(
-            mean_RANK[0],
-            mean_RANK[1],
-            mean_RANK[2],
-            color="blue",
-            s=100,
-            label="RANK",
-            marker="o",
-        )
+    # Define all markers with their names and average 3D positions
+    marker_dict = {
+        "RANK": mean_RANK,
+        "LANK": mean_LANK,
+        "RKNE": mean_RKNE,
+        "LKNE": mean_LKNE,
+        "RSHO": mean_RSHO,
+        "LSHO": mean_LSHO,
+        "RPEL": mean_RPEL,
+        "LPEL": mean_LPEL,
+        "RELB": mean_RELB,
+        "LELB": mean_LELB,
+        "RWRA": mean_RWRA,
+        "LWRA": mean_LWRA,
+    }
 
-    # Plot the other body markers in the same way (RKNE, LKNE, RSHO, LSHO, etc.)
-    ax.scatter(
-        mean_RKNE[0],
-        mean_RKNE[1],
-        mean_RKNE[2],
-        color="blue",
-        s=100,
-        label="RKNE",
-        marker="o",
-    )
-    ax.scatter(
-        mean_LKNE[0],
-        mean_LKNE[1],
-        mean_LKNE[2],
-        color="blue",
-        s=100,
-        label="LKNE",
-        marker="o",
-    )
-    ax.scatter(
-        mean_RSHO[0],
-        mean_RSHO[1],
-        mean_RSHO[2],
-        color="blue",
-        s=100,
-        label="RSHO",
-        marker="o",
-    )
-    ax.scatter(
-        mean_LSHO[0],
-        mean_LSHO[1],
-        mean_LSHO[2],
-        color="blue",
-        s=100,
-        label="LSHO",
-        marker="o",
-    )
-    ax.scatter(
-        mean_RPEL[0],
-        mean_RPEL[1],
-        mean_RPEL[2],
-        color="blue",
-        s=100,
-        label="RPEL",
-        marker="o",
-    )
-    ax.scatter(
-        mean_LPEL[0],
-        mean_LPEL[1],
-        mean_LPEL[2],
-        color="blue",
-        s=100,
-        label="LPEL",
-        marker="o",
-    )
-    ax.scatter(
-        mean_RELB[0],
-        mean_RELB[1],
-        mean_RELB[2],
-        color="blue",
-        s=100,
-        label="RELB",
-        marker="o",
-    )
-    ax.scatter(
-        mean_LELB[0],
-        mean_LELB[1],
-        mean_LELB[2],
-        color="blue",
-        s=100,
-        label="LELB",
-        marker="o",
-    )
-    ax.scatter(
-        mean_RWRA[0],
-        mean_RWRA[1],
-        mean_RWRA[2],
-        color="blue",
-        s=100,
-        label="RWRA",
-        marker="o",
-    )
-    ax.scatter(
-        mean_LWRA[0],
-        mean_LWRA[1],
-        mean_LWRA[2],
-        color="blue",
-        s=100,
-        label="LWRA",
-        marker="o",
-    )
+    # Define stickman connections as pairs of (start, end) marker names
+    stickman_connections = [
+        ("LSHO", "RSHO"),
+        ("LSHO", "LPEL"),
+        ("RPEL", "RSHO"),
+        ("LPEL", "RPEL"),
+        ("LSHO", "LELB"),
+        ("RSHO", "RELB"),
+        ("LELB", "LWRA"),
+        ("RELB", "RWRA"),
+        ("LPEL", "LKNE"),
+        ("RPEL", "RKNE"),
+        ("LKNE", "LANK"),
+        ("RKNE", "RANK"),
+    ]
 
-    # Create the stickman model by plotting lines between key body markers
-    ax.plot(
-        [mean_LSHO[0], mean_RSHO[0]],
-        [mean_LSHO[1], mean_RSHO[1]],
-        [mean_LSHO[2], mean_RSHO[2]],
-        color="black",
-        linewidth=2,
-    )
-    ax.plot(
-        [mean_LSHO[0], mean_LPEL[0]],
-        [mean_LSHO[1], mean_LPEL[1]],
-        [mean_LSHO[2], mean_LPEL[2]],
-        color="black",
-        linewidth=2,
-    )
-    ax.plot(
-        [mean_RPEL[0], mean_RSHO[0]],
-        [mean_RPEL[1], mean_RSHO[1]],
-        [mean_RPEL[2], mean_RSHO[2]],
-        color="black",
-        linewidth=2,
-    )
-    ax.plot(
-        [mean_LPEL[0], mean_RPEL[0]],
-        [mean_LPEL[1], mean_RPEL[1]],
-        [mean_LPEL[2], mean_RPEL[2]],
-        color="black",
-        linewidth=2,
-    )
+    # Plot each marker as a 3D scatter point
+    for name, pos in marker_dict.items():
+        color = "red" if np.allclose(pos, mean) else "blue"
+        ax.scatter(pos[0], pos[1], pos[2], color=color, s=100, label=name, marker="o")
 
-    # Add other body segments using similar lines between markers (e.g., knees, elbows, wrists)
+    # Plot all stickman segments
+    for start, end in stickman_connections:
+        p1, p2 = marker_dict[start], marker_dict[end]
+        ax.plot([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], color="black", linewidth=2)
+
 
     # Plot all points inside or outside the ellipsoid, depending on the flag
     if inside_point:
@@ -401,9 +282,16 @@ def plot_ellipsoid_and_points_stickman(
     if interactive:
         plt.show()
     else:
-        filename_to_save = f"{bambiID}_ankle_position_ellipsoid.png"
+        if np.allclose(mean, mean_RANK) or np.allclose(mean, mean_LANK):
+            region = "ankle"
+        elif np.allclose(mean, mean_RWRA) or np.allclose(mean, mean_LWRA):
+            region = "wrist"
+        else:
+            region = "unknown"
+
+        filename_to_save = f"{bambiID}_{region}_position_ellipsoid.png"
         save_path = os.path.join(folder_save_path, filename_to_save)
-        # fig.savefig(save_path, dpi=300, pad_inches=0)
+        fig.savefig(save_path, dpi=300, pad_inches=0)
         print(f"Static plot saved to {os.path.abspath(save_path)}")
         plt.close()
 

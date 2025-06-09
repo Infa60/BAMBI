@@ -214,7 +214,7 @@ def ankle_high(ankle_marker, pelvis_marker, time_vector, leg_length, high_thresh
 
     common_intervals = intersect_intervals(close_to_max_extension_interval, ankle_in_elevation_interval)
 
-    if plot == True:
+    if plot:
         plt.figure(figsize=(12, 4))
         plt.plot(time_vector, ankle_marker[:,2], label="Ankle", color='blue')
         plt.plot(time_vector, distance_pelv_ank, label="Distance Pelvis Ankle", color='red')
