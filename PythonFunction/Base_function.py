@@ -55,6 +55,7 @@ def get_threshold_intervals(signal, threshold, mode="above"):
         mode :
             - "above": detects where signal > threshold
             - "below": detects where signal < threshold
+            - "between": detects where low < signal < high
 
     Returns:
         intervals : list of (start_idx, end_idx)
@@ -65,8 +66,13 @@ def get_threshold_intervals(signal, threshold, mode="above"):
         condition = signal > threshold
     elif mode == "below":
         condition = signal < threshold
+    elif mode == "between":
+        if not (isinstance(threshold, (tuple, list)) and len(threshold) == 2):
+            raise ValueError("For 'between' mode, threshold must be a (low, high) tuple.")
+        low, high = threshold
+        condition = (signal > low) & (signal < high)
     else:
-        raise ValueError("mode must be 'above' or 'below'")
+        raise ValueError("mode must be 'above', 'below', or 'between'")
 
     # Detect transitions
     transitions = np.diff(condition.astype(int))
@@ -134,21 +140,21 @@ def analyze_intervals_duration(intervals, time_vector):
 # === STEP 1: Compute angular threshold from cohort-wide shoulder widths ===
 
 # Half of inter-shoulder distances (in meters) across baby
-inter_shoulder_half_lengths = np.array([...])
+#inter_shoulder_half_lengths = np.array([...])
 
 # 1. Input parameters
-desired_offset_m = 20
+#desired_offset_m = 20
 
 # 2. Compute the angle in radians using arctangent
-angle_threshold_rad = np.arctan(desired_offset_m / np.mean(inter_shoulder_half_lengths))
+#angle_threshold_rad = np.arctan(desired_offset_m / np.mean(inter_shoulder_half_lengths))
 
 # 3. Convert to degrees for easier interpretation
-angle_threshold_deg = np.degrees(angle_threshold_rad)
+#angle_threshold_deg = np.degrees(angle_threshold_rad)
 
 # === STEP 2: For a specific baby, compute their personalized max offset ===
 
 # Half shoulder width for the current subject
-half_shoulder_width_baby = 0.085  # replace with actual measurement
+#half_shoulder_width_baby = 0.085  # replace with actual measurement
 
 # Max lateral offset allowed before calling it "misalignment"
-max_offset = np.tan(angle_threshold_rad) * half_shoulder_width_baby
+#max_offset = np.tan(angle_threshold_rad) * half_shoulder_width_baby

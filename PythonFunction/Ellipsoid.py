@@ -80,6 +80,10 @@ def plot_ellipsoid_and_points_stickman(
     LELB,
     LWRA,
     RWRA,
+    CSHD,
+    FSHD,
+    LSHD,
+    RSHD,
     bambiID,
     folder_save_path,
     confidence_threshold,
@@ -138,6 +142,10 @@ def plot_ellipsoid_and_points_stickman(
     mean_LELB = np.mean(LELB, axis=0)
     mean_RWRA = np.mean(RWRA, axis=0)
     mean_LWRA = np.mean(LWRA, axis=0)
+    mean_CSHD = np.mean(CSHD, axis=0)
+    mean_FSHD = np.mean(FSHD, axis=0)
+    mean_LSHD = np.mean(LSHD, axis=0)
+    mean_RSHD = np.mean(RSHD, axis=0)
 
     # Create the 3D figure
     fig = plt.figure(figsize=(10, 8))
@@ -159,6 +167,10 @@ def plot_ellipsoid_and_points_stickman(
         "LELB": mean_LELB,
         "RWRA": mean_RWRA,
         "LWRA": mean_LWRA,
+        "CSHD": mean_CSHD,
+        "FSHD": mean_FSHD,
+        "LSHD": mean_LSHD,
+        "RSHD": mean_RSHD,
     }
 
     # Define stickman connections as pairs of (start, end) marker names
@@ -175,6 +187,10 @@ def plot_ellipsoid_and_points_stickman(
         ("RPEL", "RKNE"),
         ("LKNE", "LANK"),
         ("RKNE", "RANK"),
+        ("CSHD", "CSHD"),
+        ("FSHD", "FSHD"),
+        ("LSHD", "LSHD"),
+        ("RSHD", "RSHD"),
     ]
 
     # Plot each marker as a 3D scatter point
@@ -243,6 +259,10 @@ def plot_ellipsoid_and_points_stickman(
             mean_LELB,
             mean_RWRA,
             mean_LWRA,
+            mean_CSHD,
+            mean_FSHD,
+            mean_LSHD,
+            mean_RSHD
         ]
     )
 

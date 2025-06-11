@@ -1,20 +1,20 @@
 import scipy.io
 import matplotlib
-import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from scipy.stats import skew
-from Function.Ellipsoid import (
+from PythonFunction.Ellipsoid import (
     plot_ellipsoid_and_points_stickman
 )
-from Function.Leg_lift_adduct import (
+from PythonFunction.Leg_lift_adduct import (
     plot_combined_pdf,
     plot_mean_pdf_stat,
     ankle_high
 )
-from Function.Kicking_function import kicking, get_mean_and_std
-from Function.Members_contact import distance_foot_foot, distance_hand_hand, distance_hand_foot
-from Function.Body_symmetry import body_symmetry
+from PythonFunction.Kicking_function import kicking, get_mean_and_std
+from PythonFunction.Members_contact import distance_foot_foot, distance_hand_hand, distance_hand_foot
+from PythonFunction.Body_symmetry import body_symmetry
+from PythonFunction.Head_contact_orientation import distance_hand_mouth, head_rotation
 
 # Set matplotlib backend
 matplotlib.use("TkAgg")
@@ -37,6 +37,10 @@ bambiID_list = results_struct.dtype.names  # Extract all Bambi IDs
 
 # Iterate through each Bambi ID
 for i, bambiID in enumerate(results_struct.dtype.names):
+    if bambiID == "Bambi031":
+        continue
+
+    print(f"{bambiID} is running")
     row = {}
     row["bambiID"] = bambiID
 
@@ -74,6 +78,11 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     RELB = results_struct[bambiID]["RELB"][0, 0]
     LWRA = results_struct[bambiID]["LWRA"][0, 0]
     RWRA = results_struct[bambiID]["RWRA"][0, 0]
+    CSHD = results_struct[bambiID]["CSHD"][0, 0]
+    FSHD = results_struct[bambiID]["FSHD"][0, 0]
+    LSHD = results_struct[bambiID]["LSHD"][0, 0]
+    RSHD = results_struct[bambiID]["RSHD"][0, 0]
+
     time_duration = results_struct[bambiID]["time_duration"][0][0][0]
 
     # Calculate total distance traveled by the ankle
@@ -81,21 +90,8 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     row["distance_travel_ankle"] = np.sum(distances)
 
     # Call function to plot ellipsoid and stickman, retrieve geometric stats
-    stats = plot_ellipsoid_and_points_stickman(
-        pos_ankle,
-        RANK,
-        LANK,
-        RKNE,
-        LKNE,
-        RPEL,
-        LPEL,
-        RSHO,
-        LSHO,
-        RELB,
-        LELB,
-        LWRA,
-        RWRA,
-        bambiID,
+    stats_ankle_ellipsoid = plot_ellipsoid_and_points_stickman(
+        pos_ankle, RANK, LANK, RKNE, LKNE, RPEL, LPEL, RSHO, LSHO, RELB, LELB, LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, bambiID,
         folder_save_path=f"{path}/Outcomes_plot",
         confidence_threshold=0.90,
         interactive=False,
@@ -104,10 +100,10 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     )
 
     # Save geometric and velocity distribution stats
-    row["num_points"] = stats["num_points"]
-    row["num_enclosed"] = stats["num_enclosed"]
-    row["percentage_enclosed"] = stats["percentage_enclosed"]
-    row["volume_90"] = stats["volume_90"]
+    row["num_points"] = stats_ankle_ellipsoid["num_points"]
+    row["num_enclosed"] = stats_ankle_ellipsoid["num_enclosed"]
+    row["percentage_enclosed"] = stats_ankle_ellipsoid["percentage_enclosed"]
+    row["volume_90"] = stats_ankle_ellipsoid["volume_90"]
     row["skew_velocity"] = skew(results_struct[bambiID]["velocity_ankle"][0, 0]).item()
 
     # Add the row to the list
@@ -134,30 +130,31 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     hand_foot_contact = distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold=100, time_vector=time_duration, plot=False)
 
     ## Wrist ellipsoid
-    stats = plot_ellipsoid_and_points_stickman(
-        RWRA,
-        RANK,
-        LANK,
-        RKNE,
-        LKNE,
-        RPEL,
-        LPEL,
-        RSHO,
-        LSHO,
-        RELB,
-        LELB,
-        LWRA,
-        RWRA,
-        bambiID,
-        folder_save_path=f"{path}/Wrist_Outcomes_plot",
+    stats_right_wrist_ellipsoid = plot_ellipsoid_and_points_stickman(
+        RWRA, RANK, LANK, RKNE, LKNE, RPEL, LPEL, RSHO, LSHO, RELB, LELB, LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, bambiID,
+        folder_save_path=f"{path}/Right_Wrist_Outcomes_plot",
+        confidence_threshold=0.99,
+        interactive=False,
+        inside_point=False,
+        outside_point=False,
+    )
+    stats_left_wrist_ellipsoid = plot_ellipsoid_and_points_stickman(
+        LWRA, RANK, LANK, RKNE, LKNE, RPEL, LPEL, RSHO, LSHO, RELB, LELB, LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, bambiID,
+        folder_save_path=f"{path}/Left_Wrist_Outcomes_plot",
         confidence_threshold=0.99,
         interactive=False,
         inside_point=False,
         outside_point=False,
     )
 
+    ## Hand to mouth contact
+    distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold=30, time_vector=time_duration, plot=False)
+
+    ## Head rotation
+    head_rotation(CSHD, FSHD, LSHD, RSHD, LSHO, RSHO, LPEL, RPEL, threshold=(-5,5), time_vector=time_duration, plot=False)
+
     ## Body symmetry
-    body_symmetry(LPEL, RPEL, LSHO, RSHO,40, time_vector=time_duration, plot=True)
+    body_symmetry(LPEL, RPEL, LSHO, RSHO,40, time_vector=time_duration, plot=False)
 
 
 # Convert all collected data into a DataFrame
