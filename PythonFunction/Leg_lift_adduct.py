@@ -6,7 +6,7 @@ import seaborn as sns
 from scipy.stats import gaussian_kde
 from scipy.stats import skew, kurtosis
 import pandas as pd
-from Function.Base_function import resample_size, get_threshold_intervals, intersect_intervals, analyze_intervals_duration
+from PythonFunction.Base_function import resample_size, get_threshold_intervals, intersect_intervals, analyze_intervals_duration
 
 matplotlib.use("TkAgg")
 

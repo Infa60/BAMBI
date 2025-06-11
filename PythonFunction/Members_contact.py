@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
-from Function.Base_function import get_threshold_intervals, analyze_intervals_duration, intersect_intervals
+from PythonFunction.Base_function import get_threshold_intervals, analyze_intervals_duration, intersect_intervals
 matplotlib.use("TkAgg")
 
 
@@ -37,7 +37,7 @@ def distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle, threshold_knee, 
         plt.axhline(threshold_ankle, color='red', linestyle='--', label="Ankle Threshold")
         plt.axhline(threshold_knee, color='green', linestyle='--', label="Knee Threshold")
         plt.xlabel("Time (s)")
-        plt.ylabel("Distance (m)")
+        plt.ylabel("Distance (mm)")
         plt.title("Foot and Knee Distances Over Time")
         plt.grid(True)
         plt.legend()
@@ -70,7 +70,7 @@ def distance_hand_hand(LWRA, RWRA, threshold, time_vector, plot=False):
         plt.plot(time_vector, distance_hand_hand, label="Hand-to-Hand Distance")
         plt.axhline(threshold, color='red', linestyle='--', label="Threshold")
         plt.xlabel("Time (s)")
-        plt.ylabel("Distance (m)")
+        plt.ylabel("Distance (mm)")
         plt.title("Distance Between Left and Right Hands Over Time")
         plt.grid(True)
         plt.legend()
@@ -117,7 +117,7 @@ def distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold, time_vector, plot=Fals
         plt.plot(time_vector, distance_handL_footR, label="Left Hand - Right Foot")
         plt.plot(time_vector, distance_handL_footL, label="Left Hand - Left Foot")
         plt.xlabel("Time (s)")
-        plt.ylabel("Distance (m)")
+        plt.ylabel("Distance (mm)")
         plt.title("Hand-Foot Distances Over Time")
         plt.grid(True)
         plt.legend()

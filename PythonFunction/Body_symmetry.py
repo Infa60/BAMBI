@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
-from Function.Base_function import get_threshold_intervals, analyze_intervals_duration, intersect_intervals
+from PythonFunction.Base_function import get_threshold_intervals, analyze_intervals_duration
+
 matplotlib.use("TkAgg")
 
 
@@ -35,8 +36,8 @@ def body_symmetry(LPEL, RPEL, LSHO, RSHO, threshold, time_vector, plot=False):
         plt.plot(time_vector, distance_diff_right_left, label="Difference right left side")
         plt.axhline(threshold, color='green', linestyle='--', label="Threshold")
         plt.xlabel("Time (s)")
-        plt.ylabel("Distance (m)")
-        plt.title("Foot and Knee Distances Over Time")
+        plt.ylabel("Distance (mm)")
+        plt.title("Body symmetry")
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
