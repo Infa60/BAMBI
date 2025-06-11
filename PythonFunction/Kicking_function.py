@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib
+import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.signal import find_peaks
 matplotlib.use("TkAgg")
@@ -9,7 +10,8 @@ def kicking(
         pelvis_marker,
         ankle_marker,
         time_duration,
-        leg_length
+        leg_length,
+        plot=False
             ):
     """
         Analyze kicking movements based on the distance between pelvis and ankle markers.
@@ -47,6 +49,19 @@ def kicking(
     )
 
     kicking_cycle_data = []
+
+    if plot:
+        plt.figure(figsize=(12, 6))
+        plt.plot(time_duration, distance_pelv_ank_norm, label='Normalized pelvis-ankle distance', color='blue')
+        plt.scatter(time_duration[peaks], distance_pelv_ank_norm[peaks], color='green', marker='o',
+                    label='Detected peaks')
+        plt.xlabel("Time (s)")
+        plt.ylabel("Normalized distance (pelvis to ankle)")
+        plt.title("Detection of leg extension phases (kicks)")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
 
     # Analyze each kick cycle between two consecutive extension peaks
     for i in range(len(peaks) - 1):

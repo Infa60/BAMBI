@@ -110,7 +110,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     data_rows.append(row)
 
     ## Kicking
-    kicking_cycle_data_left, distance_kicking_left = kicking(LPEL,LANK, time_duration, 1)
+    kicking_cycle_data_left, distance_kicking_left = kicking(LPEL,LANK, time_duration, 1, plot=True)
     mean_std_kicking_values_left = get_mean_and_std(kicking_cycle_data_left)
 
     kicking_cycle_data_right, distance_kicking_right = kicking(RPEL,RANK, time_duration, 1)
