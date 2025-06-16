@@ -231,4 +231,4 @@ def ankle_high(ankle_marker, pelvis_marker, time_vector, leg_length, high_thresh
 
     lift_with_leg_extend = analyze_intervals_duration(common_intervals, time_vector)
 
-    return lift_with_leg_extend
+    return lift_with_leg_extend, distance_pelv_ank

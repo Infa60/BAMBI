@@ -11,10 +11,11 @@ from PythonFunction.Leg_lift_adduct import (
     plot_mean_pdf_stat,
     ankle_high
 )
-from PythonFunction.Kicking_function import kicking, get_mean_and_std, phase_antiphase, shoudler_knee_distance
+from PythonFunction.Kicking_function import kicking, get_mean_and_std, shoudler_knee_distance
 from PythonFunction.Members_contact import distance_foot_foot, distance_hand_hand, distance_hand_foot
 from PythonFunction.Body_symmetry import body_symmetry
 from PythonFunction.Head_contact_orientation import distance_hand_mouth, head_rotation
+from PythonFunction.Base_function import phase_antiphase
 
 # Set matplotlib backend
 matplotlib.use("TkAgg")
