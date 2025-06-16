@@ -1,16 +1,9 @@
 import numpy as np
-from sklearn.decomposition import PCA
-from scipy.stats import chi2
-import os
 import matplotlib.pyplot as plt
 import matplotlib
-import seaborn as sns
-from scipy.stats import gaussian_kde
-from scipy.interpolate import interp1d
-from scipy.stats import skew, kurtosis
 import pandas as pd
-from matplotlib.ticker import MultipleLocator
-from scipy.signal import find_peaks
+from scipy.interpolate import interp1d
+from scipy.signal import hilbert, correlate
 matplotlib.use("TkAgg")
 
 
@@ -211,6 +204,44 @@ def phase_antiphase(dist_left, dist_right, time_vector):
     plt.grid(True)
     plt.tight_layout()
     plt.show()
+
+def get_leg_and_tibia_length(file_path, bambiID):
+    # Load CSV with semicolon separator (common in French exports)
+    df = pd.read_csv(file_path, sep=';')
+    df.columns = df.columns.str.strip()  # clean up any whitespace in column names
+
+    # Extract the numeric part from the Bambi ID
+    participant_num = int(bambiID[-3:])
+
+    # Select all rows for this participant (there may be two: left and right side)
+    rows = df[df['participant_number'] == participant_num]
+    if rows.empty:
+        raise ValueError(f"No data found for participant {bambiID}")
+
+    # Replace commas with dots for decimal conversion (e.g., "22,5" → "22.5")
+    rows = rows.replace(',', '.', regex=True).infer_objects(copy=False)
+
+    # Convert relevant columns to float (ignore conversion errors)
+    for col in [
+        'visit_total_left_leg_length', 'visit_total_right_leg_length',
+        'visit_left_lower_leg_length', 'visit_right_lower_leg_length'
+    ]:
+        rows[col] = pd.to_numeric(rows[col], errors='coerce')
+
+    # Combine all left/right leg length values and pick the first available
+    leg_length = pd.concat([
+        rows['visit_total_left_leg_length'],
+        rows['visit_total_right_leg_length']
+    ]).dropna().iloc[0]
+
+    # Combine all left/right tibia length values and pick the first available
+    tibia_length = pd.concat([
+        rows['visit_left_lower_leg_length'],
+        rows['visit_right_lower_leg_length']
+    ]).dropna().iloc[0]
+    leg_length = leg_length * 10
+    tibia_length =  tibia_length * 10
+    return leg_length, tibia_length
 
 # === STEP 1: Compute angular threshold from cohort-wide shoulder widths ===
 
