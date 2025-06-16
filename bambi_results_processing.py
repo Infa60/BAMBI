@@ -15,7 +15,7 @@ from PythonFunction.Kicking_function import kicking, get_mean_and_std, shoudler_
 from PythonFunction.Members_contact import distance_foot_foot, distance_hand_hand, distance_hand_foot
 from PythonFunction.Body_symmetry import body_symmetry
 from PythonFunction.Head_contact_orientation import distance_hand_mouth, head_rotation
-from PythonFunction.Base_function import phase_antiphase
+from PythonFunction.Base_function import phase_antiphase, get_leg_and_tibia_length
 
 # Set matplotlib backend
 matplotlib.use("TkAgg")
@@ -23,6 +23,8 @@ matplotlib.use("TkAgg")
 # Set path and load .mat file
 path = "/Users/mathieubourgeois/Documents/BAMBI_Data"
 result_file = f"{path}/resultats.mat"
+anthropo_file = f"{path}/REDcap_template_3months.csv"
+
 data = scipy.io.loadmat(result_file)
 
 # Access the structured results
@@ -38,10 +40,14 @@ bambiID_list = results_struct.dtype.names  # Extract all Bambi IDs
 
 # Iterate through each Bambi ID
 for i, bambiID in enumerate(results_struct.dtype.names):
-    if bambiID != "Bambi020":
+    if results_struct[bambiID]['marker_category'][0][0][0] != "full":
         continue
 
     print(f"{bambiID} is running")
+
+    leg_length, tibia = get_leg_and_tibia_length(anthropo_file, bambiID)
+
+
     row = {}
     row["bambiID"] = bambiID
 
@@ -117,10 +123,10 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     hand_hand_contact = distance_hand_hand(LWRA, RWRA, threshold=50, time_vector=time_duration, plot=False)
 
     ## Kicking
-    kicking_cycle_outcomes_left, distance_kicking_left = kicking(LPEL,LANK, time_duration, 1, plot=False)
+    kicking_cycle_outcomes_left, distance_kicking_left = kicking(LPEL,LANK, time_duration, leg_length, plot=True)
     mean_std_kicking_values_left = get_mean_and_std(kicking_cycle_outcomes_left)
 
-    kicking_cycle_outcomes_right, distance_kicking_right = kicking(RPEL,RANK, time_duration, 1, plot=False)
+    kicking_cycle_outcomes_right, distance_kicking_right = kicking(RPEL,RANK, time_duration, leg_length, plot=True)
     mean_std_kicking_values_right = get_mean_and_std(kicking_cycle_outcomes_right)
 
     # phase_antiphase(distance_kicking_left,distance_kicking_right, time_duration)
