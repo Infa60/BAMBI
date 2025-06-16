@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
-from scipy.signal import find_peaks
+from scipy.signal import find_peaks, hilbert, correlate
 matplotlib.use("TkAgg")
 
 
@@ -75,11 +75,18 @@ def kicking(
         if len(segment) < 2:
             continue  # Skip cycles that are too short
 
-        # 1. Compute the amplitude of the kicking cycle
-        # Defined as the distance from the peak to the minimum (flexion phase)
+        # 1. Identify flexion and extension amplitudes
+        # Flexion: from initial extension peak to minimum
+        # Extension: from minimum to next extension peak
+
+        start_val = distance_pelv_ank_norm[start]
+        end_val = distance_pelv_ank_norm[end]
+
         min_idx = np.argmin(segment)
         min_val = segment[min_idx]
-        amplitude = distance_pelv_ank_norm[start] - min_val
+
+        flexion_amplitude = start_val - min_val
+        extension_amplitude = end_val - min_val
 
         # 2. Compute the duration of the cycle (in seconds)
         duration = segment_time[-1] - segment_time[0]
@@ -112,7 +119,8 @@ def kicking(
 
         # 5. Store the extracted features for this kicking cycle
         kicking_cycle_data.append({
-            'amplitude': amplitude,
+            'flexion_amplitude': flexion_amplitude,
+            'extension_amplitude': extension_amplitude,
             'duration': duration,
             'steepness': steepness,
             'flexion_speed': flexion_speed,
@@ -137,3 +145,9 @@ def get_mean_and_std(kicking_cycle_data):
     })
 
     return mean_std_kicking_values
+
+def shoudler_knee_distance(LKNE, RKNE, LSHO, RSHO):
+    distance_knee_shoulder_right = np.linalg.norm(LKNE - LSHO, axis=1)
+    distance_knee_shoulder_left = np.linalg.norm(RKNE - RSHO, axis=1)
+    return distance_knee_shoulder_right, distance_knee_shoulder_left
+

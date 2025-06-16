@@ -176,7 +176,41 @@ def plot_time_series(time_vector, title="Time Series Plot", ylabel="Value", **kw
     plt.tight_layout()
     plt.show()
 
+def phase_antiphase(dist_left, dist_right, time_vector):
+    # --- Compute analytic signals ---
+    analytic_left = hilbert(dist_left)
+    analytic_right = hilbert(dist_right)
 
+    # --- Extract instantaneous phases ---
+    phase_left = np.unwrap(np.angle(analytic_left))
+    phase_right = np.unwrap(np.angle(analytic_right))
+
+    # --- Compute phase difference ---
+    phase_diff = phase_left - phase_right  # in radians
+    phase_diff = (phase_diff + np.pi) % (2 * np.pi) - np.pi  # wrap to [-π, π]
+
+    sync_index = np.mean(np.cos(phase_diff))  # ∈ [-1, 1]
+    print(sync_index)
+
+    corr = correlate(dist_right, dist_left, mode='full')
+    lags = np.arange(-len(dist_right) + 1, len(dist_right))
+    lag_at_max = lags[np.argmax(corr)]
+    time_lag = lag_at_max * 1/200
+    print(time_lag)
+
+    # --- Plot phase difference over time ---
+    plt.figure(figsize=(10, 4))
+    plt.plot(time_vector, phase_diff, label="Phase difference (left - right)")
+    plt.axhline(0, color='black', linestyle='--', linewidth=1)
+    plt.axhline(np.pi, color='gray', linestyle=':', linewidth=0.8)
+    plt.axhline(-np.pi, color='gray', linestyle=':', linewidth=0.8)
+    plt.ylabel("Phase difference (rad)")
+    plt.xlabel("Time (s)")
+    plt.title("Phase difference between left and right leg")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
 
 # === STEP 1: Compute angular threshold from cohort-wide shoulder widths ===
 

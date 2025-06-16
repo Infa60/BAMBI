@@ -11,7 +11,7 @@ from PythonFunction.Leg_lift_adduct import (
     plot_mean_pdf_stat,
     ankle_high
 )
-from PythonFunction.Kicking_function import kicking, get_mean_and_std
+from PythonFunction.Kicking_function import kicking, get_mean_and_std, phase_antiphase, shoudler_knee_distance
 from PythonFunction.Members_contact import distance_foot_foot, distance_hand_hand, distance_hand_foot
 from PythonFunction.Body_symmetry import body_symmetry
 from PythonFunction.Head_contact_orientation import distance_hand_mouth, head_rotation
@@ -113,24 +113,34 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold=100, time_vector=time_duration, plot=False)
 
     ## Hand-hand contact
-    hand_hand_contact = distance_hand_hand(LWRA, RWRA, threshold=50, time_vector=time_duration, plot=True)
+    hand_hand_contact = distance_hand_hand(LWRA, RWRA, threshold=50, time_vector=time_duration, plot=False)
 
     ## Kicking
-    kicking_cycle_data_left, distance_kicking_left = kicking(LPEL,LANK, time_duration, 1, plot=False)
-    mean_std_kicking_values_left = get_mean_and_std(kicking_cycle_data_left)
+    kicking_cycle_outcomes_left, distance_kicking_left = kicking(LPEL,LANK, time_duration, 1, plot=False)
+    mean_std_kicking_values_left = get_mean_and_std(kicking_cycle_outcomes_left)
 
-    kicking_cycle_data_right, distance_kicking_right = kicking(RPEL,RANK, time_duration, 1)
-    mean_std_kicking_values_right = get_mean_and_std(kicking_cycle_data_right)
+    kicking_cycle_outcomes_right, distance_kicking_right = kicking(RPEL,RANK, time_duration, 1, plot=False)
+    mean_std_kicking_values_right = get_mean_and_std(kicking_cycle_outcomes_right)
+
+    # phase_antiphase(distance_kicking_left,distance_kicking_right, time_duration)
+
+    # distance_knee_shoulder_right, distance_knee_shoulder_left = shoudler_knee_distance(LKNE, RKNE, LSHO, RSHO)
+
+    # phase_antiphase(distance_knee_shoulder_right, distance_kicking_right, time_duration)
+
+    # phase_antiphase(distance_knee_shoulder_left, distance_kicking_left, time_duration)
 
     ## Foot-foot contact
-    foot_foot_contact = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=100, threshold_knee=1, time_vector=time_duration, plot=False)
+    plantar_plantar_contact_outcomes, foot_foot_contact_outcomes = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=150, threshold_knee=300, time_vector=time_duration, plot=False)
 
     ## Leg lifting
-    right_lift_with_leg_extend = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30, plot=False)
-    left_lift_with_leg_extend = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30, plot=False)
+    right_lift_with_leg_extend, distance_pelv_ank_right = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30, plot=False)
+    left_lift_with_leg_extend, distance_pelv_ank_left = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30, plot=False)
+
+    # phase_antiphase(distance_pelv_ank_right, distance_pelv_ank_left, time_duration)
 
     ## Hand-foot contact
-    hand_foot_contact = distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold=100, time_vector=time_duration, plot=False)
+    hand_foot_contact_outcomes = distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold=100, time_vector=time_duration, plot=False)
 
     ## Wrist ellipsoid
     stats_right_wrist_ellipsoid = plot_ellipsoid_and_points_stickman(
