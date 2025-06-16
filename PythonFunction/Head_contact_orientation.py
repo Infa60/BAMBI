@@ -1,65 +1,72 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.animation import FuncAnimation
 from scipy.spatial.transform import Rotation as R
-from PythonFunction.Base_function import get_threshold_intervals, analyze_intervals_duration
+from PythonFunction.Base_function import get_threshold_intervals, analyze_intervals_duration, plot_time_series
 
 matplotlib.use("TkAgg")
 
 def get_trunk_rot_matrix(LSHO, RSHO, LPEL, RPEL):
-    # --- Origine tronc : milieu des épaules ---
+    # --- Trunk origin: midpoint between shoulders ---
     Origin_trunk = 0.5 * (LSHO + RSHO)
 
-    # --- Axe Y_trunk : de droite vers gauche ---
+    # --- Y_trunk axis: from right to left shoulder ---
     Y_trunk = LSHO - RSHO
     Y_trunk /= np.linalg.norm(Y_trunk, axis=1, keepdims=True)
 
-    # --- Axe Z_trunk : du bassin vers les épaules ---
+    # --- Z_trunk axis: from pelvis to shoulders (vertical trunk direction) ---
     mid_hips = 0.5 * (LPEL + RPEL)
     Z_trunk = Origin_trunk - mid_hips
     Z_trunk /= np.linalg.norm(Z_trunk, axis=1, keepdims=True)
 
-    # --- Axe X_trunk : perpendiculaire (main droite) ---
+    # --- X_trunk axis: orthogonal to Y and Z (points forward) ---
     X_trunk = np.cross(Y_trunk, Z_trunk)
     X_trunk /= np.linalg.norm(X_trunk, axis=1, keepdims=True)
 
-    # --- Ortho Z_trunk corrigé (recalé pour ⟂ à X, Y) ---
+    # --- Re-orthogonalize Z_trunk to ensure orthonormal basis ---
     Z_trunk = np.cross(X_trunk, Y_trunk)
     Z_trunk /= np.linalg.norm(Z_trunk, axis=1, keepdims=True)
 
-    # --- Matrice de rotation du tronc (shape: n_frames × 3 × 3) ---
-    R_trunk = np.stack((X_trunk, Y_trunk, Z_trunk), axis=-1)  # axes en colonnes
+    # --- Trunk rotation matrix (shape: n_frames × 3 × 3) ---
+    R_trunk = np.stack((X_trunk, Y_trunk, Z_trunk), axis=-1)
+
     return R_trunk
 
-def get_head_rot_matrix_and_mouth_pos(CSHD, LSHD, RSHD):
+def get_head_rot_matrix_and_mouth_pos(CSHD, LSHD, RSHD, FSHD):
+    # --- Glabella origin approximation: midpoint between left and right side of head ---
     Origin_glabelle = 0.5 * (LSHD + RSHD)
 
-    # Axe Y (droite → gauche)
+    # --- Y axis (right to left) ---
     Y = LSHD - RSHD
     Y /= np.linalg.norm(Y, axis=1, keepdims=True)
 
-    # Axe Z (haut) : sommet – origine, projeté pour être ⟂ à Y
+    # --- Z axis (upward): from top of head to glabella, projected to be orthogonal to Y ---
     Z = CSHD - Origin_glabelle
     dot_ZY = np.sum(Z * Y, axis=1)
     Z_proj = dot_ZY[:, np.newaxis] * Y
     Z = Z - Z_proj
     Z /= np.linalg.norm(Z, axis=1, keepdims=True)
 
-    # Axe X (avant) : X = Y × Z
+    # --- X axis (forward): cross product of Y and Z ---
     X = np.cross(Y, Z)
     X /= np.linalg.norm(X, axis=1, keepdims=True)
 
-    head_radius = (np.linalg.norm(LSHD - RSHD, axis=1)) / 2
+    # --- Head radius approximation (1/3 of head width) ---
+    head_radius = np.linalg.norm(LSHD - RSHD, axis=1) / 3
     mean_head_radius = np.mean(head_radius)
 
-    # Offsets
-    dz = 0.035 + 0.016  # glabella → stomion
+    # --- Offsets from glabella to mouth ---
+    dz = 100  # distance from glabella to mouth (stomion), in mm (to adjust)
     dx = mean_head_radius
 
+    # --- Estimate mouth position in world coordinates ---
     Mouth_position = Origin_glabelle - dz * Z + dx * X
 
-    # --- Matrice de rotation de la tête (axes déjà normalisés) ---
-    R_head = np.stack((X, Y, Z), axis=-1)  # shape: (n_frames, 3, 3)
+    # --- Head rotation matrix (shape: n_frames × 3 × 3), axes are column vectors ---
+    R_head = np.stack((X, Y, Z), axis=-1)
+
     return Mouth_position, R_head
 
 def distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold, time_vector, plot=False):
@@ -70,7 +77,7 @@ def distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold, time_vect
     and returns event count, total time, and durations. Optionally plots the distance over time.
     """
 
-    mouth_pos, matrix_rot_head = get_head_rot_matrix_and_mouth_pos(CSHD, LSHD, RSHD)
+    mouth_pos, matrix_rot_head = get_head_rot_matrix_and_mouth_pos(CSHD, LSHD, RSHD, FSHD)
 
     # 1. Compute frame-by-frame Euclidean distance between the wrists
     distance_handR_mouth = np.linalg.norm(mouth_pos - RWRA, axis=1)
@@ -86,17 +93,8 @@ def distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold, time_vect
 
     # 4. Optional plot
     if plot:
-        plt.figure(figsize=(10, 4))
-        plt.plot(time_vector, distance_handR_mouth, label="Right")
-        plt.plot(time_vector, distance_handL_mouth, label="Left")
-        plt.axhline(threshold, color='red', linestyle='--', label="Threshold")
-        plt.xlabel("Time (s)")
-        plt.ylabel("Distance (mm)")
-        plt.title("Distance Between Left and Right Hands Over Time")
-        plt.grid(True)
-        plt.legend()
-        plt.tight_layout()
-        plt.show()
+        plot_time_series(time_vector, Right=distance_handR_mouth, Left=distance_handL_mouth, threshold=threshold,
+                         ylabel="Distance (mm)", title="Distance Between Mouth and Left / Right Hands Over Time")
 
     # 5. Return summary dictionary
     return R_hand_contact, L_hand_contact
@@ -109,7 +107,7 @@ def head_rotation(CSHD, FSHD, LSHD, RSHD, LSHO, RSHO, LPEL, RPEL, threshold, tim
     and returns event count, total time, and durations. Optionally plots the distance over time.
     """
 
-    mouth_pos, matrix_rot_head = get_head_rot_matrix_and_mouth_pos(CSHD, LSHD, RSHD)
+    mouth_pos, matrix_rot_head = get_head_rot_matrix_and_mouth_pos(CSHD, LSHD, RSHD, FSHD)
 
     matrix_rot_trunk = get_trunk_rot_matrix(LSHO, RSHO, LPEL, RPEL)
 

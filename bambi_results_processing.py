@@ -37,7 +37,7 @@ bambiID_list = results_struct.dtype.names  # Extract all Bambi IDs
 
 # Iterate through each Bambi ID
 for i, bambiID in enumerate(results_struct.dtype.names):
-    if bambiID == "Bambi031":
+    if bambiID != "Bambi020":
         continue
 
     print(f"{bambiID} is running")
@@ -110,21 +110,21 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     data_rows.append(row)
 
     ## Kicking
-    kicking_cycle_data_left, distance_kicking_left = kicking(LPEL,LANK, time_duration, 1, plot=True)
+    kicking_cycle_data_left, distance_kicking_left = kicking(LPEL,LANK, time_duration, 1, plot=False)
     mean_std_kicking_values_left = get_mean_and_std(kicking_cycle_data_left)
 
     kicking_cycle_data_right, distance_kicking_right = kicking(RPEL,RANK, time_duration, 1)
     mean_std_kicking_values_right = get_mean_and_std(kicking_cycle_data_right)
 
     ## Foot-foot contact
-    foot_foot_contact = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=100, threshold_knee=1, time_vector=time_duration)
+    foot_foot_contact = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=100, threshold_knee=1, time_vector=time_duration, plot=False)
 
     ## Hand-hand contact
-    hand_hand_contact = distance_hand_hand(LWRA, RWRA, threshold=200, time_vector=time_duration)
+    hand_hand_contact = distance_hand_hand(LWRA, RWRA, threshold=200, time_vector=time_duration, plot=False)
 
     ## Leg lifting
-    right_lift_with_leg_extend = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30)
-    left_lift_with_leg_extend = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30)
+    right_lift_with_leg_extend = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30, plot=False)
+    left_lift_with_leg_extend = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30, plot=False)
 
     ## Hand-foot contact
     hand_foot_contact = distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold=100, time_vector=time_duration, plot=False)
@@ -148,7 +148,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     )
 
     ## Hand to mouth contact
-    distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold=30, time_vector=time_duration, plot=False)
+    distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold=100, time_vector=time_duration, plot=True)
 
     ## Head rotation
     head_rotation(CSHD, FSHD, LSHD, RSHD, LSHO, RSHO, LPEL, RPEL, threshold=(-5,5), time_vector=time_duration, plot=False)

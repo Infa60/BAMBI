@@ -137,6 +137,47 @@ def analyze_intervals_duration(intervals, time_vector):
         'durations_per_event': durations_per_event
     }
 
+def plot_time_series(time_vector, title="Time Series Plot", ylabel="Value", **kwargs):
+    """
+    Plot multiple time series on a single graph.
+
+    Parameters:
+    - time_vector : array (n,) - time values
+    - title : str - title of the plot
+    - ylabel : str - label for the y-axis
+    - kwargs : named series to plot.
+        Each entry can be:
+            - a vector of shape (n,) or (n, 1)
+            - a scalar (expanded to a constant line)
+        If the name contains 'threshold' or 'thresh', it will be plotted as a dashed line.
+    """
+    plt.figure(figsize=(10, 5))
+
+    for name, data in kwargs.items():
+        # Convert scalars to constant arrays
+        if np.isscalar(data):
+            data = np.full_like(time_vector, data, dtype=np.float64)
+
+        # Remove singleton dimensions
+        data = np.squeeze(data)
+
+        if data.shape[0] != time_vector.shape[0]:
+            raise ValueError(f"Dimension mismatch for '{name}': {data.shape[0]} vs {time_vector.shape[0]}")
+
+        # Use dashed line for threshold-like labels
+        linestyle = '--' if 'threshold' in name.lower() or 'thresh' in name.lower() else '-'
+        plt.plot(time_vector, data, label=name, linestyle=linestyle)
+
+    plt.xlabel("Time")
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
+
 # === STEP 1: Compute angular threshold from cohort-wide shoulder widths ===
 
 # Half of inter-shoulder distances (in meters) across baby
