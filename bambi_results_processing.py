@@ -1,7 +1,4 @@
 import scipy.io
-import matplotlib
-import pandas as pd
-import numpy as np
 from scipy.stats import skew
 from PythonFunction.Ellipsoid import (
     plot_ellipsoid_and_points_stickman
@@ -11,11 +8,11 @@ from PythonFunction.Leg_lift_adduct import (
     plot_mean_pdf_stat,
     ankle_high
 )
-from PythonFunction.Kicking_function import kicking, get_mean_and_std, shoudler_knee_distance
-from PythonFunction.Members_contact import distance_foot_foot, distance_hand_hand, distance_hand_foot
-from PythonFunction.Body_symmetry import body_symmetry
-from PythonFunction.Head_contact_orientation import distance_hand_mouth, head_rotation
-from PythonFunction.Base_function import phase_antiphase, get_leg_and_tibia_length
+from PythonFunction.Kicking_function import *
+from PythonFunction.Members_contact import *
+from PythonFunction.Body_symmetry import *
+from PythonFunction.Head_contact_orientation import *
+from PythonFunction.Base_function import *
 
 # Set matplotlib backend
 matplotlib.use("TkAgg")
@@ -45,8 +42,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
     print(f"{bambiID} is running")
 
-    leg_length, tibia = get_leg_and_tibia_length(anthropo_file, bambiID)
-
+    leg_length, shank_length = get_leg_and_tibia_length(anthropo_file, bambiID)
 
     row = {}
     row["bambiID"] = bambiID
@@ -91,6 +87,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     RSHD = results_struct[bambiID]["RSHD"][0, 0]
 
     time_duration = results_struct[bambiID]["time_duration"][0][0][0]
+    body_length = get_body_length(RPEL, LPEL, RSHO, LSHO)
 
     # Calculate total distance traveled by the ankle
     distances = np.linalg.norm(np.diff(pos_ankle, axis=0), axis=1)
@@ -123,19 +120,27 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     hand_hand_contact = distance_hand_hand(LWRA, RWRA, threshold=50, time_vector=time_duration, plot=False)
 
     ## Kicking
-    kicking_cycle_outcomes_left, distance_kicking_left = kicking(LPEL,LANK, time_duration, leg_length, plot=True)
+    kicking_cycle_outcomes_left, distance_kicking_left = kicking(LPEL,LANK, time_duration, leg_length, LKNE, LPEL, LANK, plot=True)
     mean_std_kicking_values_left = get_mean_and_std(kicking_cycle_outcomes_left)
 
-    kicking_cycle_outcomes_right, distance_kicking_right = kicking(RPEL,RANK, time_duration, leg_length, plot=True)
+    kicking_cycle_outcomes_right, distance_kicking_right = kicking(RPEL,RANK, time_duration, leg_length, RKNE, RPEL, RANK, plot=True)
     mean_std_kicking_values_right = get_mean_and_std(kicking_cycle_outcomes_right)
 
     # phase_antiphase(distance_kicking_left,distance_kicking_right, time_duration)
 
-    # distance_knee_shoulder_right, distance_knee_shoulder_left = shoudler_knee_distance(LKNE, RKNE, LSHO, RSHO)
 
     # phase_antiphase(distance_knee_shoulder_right, distance_kicking_right, time_duration)
 
     # phase_antiphase(distance_knee_shoulder_left, distance_kicking_left, time_duration)
+
+    knee_angle_right, hip_angle_right = synchro_hip_knee(time_duration, RPEL, RKNE, RSHO, RANK, plot=False)
+    knee_angle_left, hip_angle_left = synchro_hip_knee(time_duration, LPEL, LKNE, LSHO, LANK, plot=False)
+
+    #phase_antiphase(knee_angle_right, hip_angle_right, time_duration)
+    #phase_antiphase(knee_angle_left, hip_angle_left, time_duration)
+
+    #phase_antiphase(knee_angle_right, knee_angle_left, time_duration)
+
 
     ## Foot-foot contact
     plantar_plantar_contact_outcomes, foot_foot_contact_outcomes = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=150, threshold_knee=300, time_vector=time_duration, plot=False)

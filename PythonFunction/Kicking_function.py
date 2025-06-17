@@ -1,18 +1,16 @@
-import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
-import pandas as pd
+from PythonFunction.Base_function import *
 from scipy.signal import find_peaks
-
+from sklearn.cross_decomposition import CCA
 matplotlib.use("TkAgg")
 
 def extract_kick_intervals(
     distance_signal,
     time_vector,
     peaks,
-    min_drop=0.1,
-    max_duration=5.0,
-    max_jump=4
+    min_drop=20,
+    max_duration=4.0,
+    max_jump=4,
+    min_ratio=0.90
 ):
     intervals = []
     i = 0
@@ -20,181 +18,79 @@ def extract_kick_intervals(
     while i < len(peaks) - 1:
         start = peaks[i]
         start_val = distance_signal[start]
-        found = False
 
-        best_j = None
-        best_end = None
-        best_end_val = -np.inf
-
+        found_end = False
         for offset in range(1, min(max_jump + 1, len(peaks) - i)):
             j = i + offset
             end = peaks[j]
+            end_val = distance_signal[end]
             duration = time_vector[end] - time_vector[start]
-            drop = start_val - np.min(distance_signal[start:end + 1])
+            min_in_interval = np.min(distance_signal[start:end + 1])
+            drop_start = start_val - min_in_interval
+            drop_end = end_val - min_in_interval
 
-            if drop >= min_drop and duration <= max_duration:
-                # Check absence of kick intermédiaire
-                no_intermediate_kick = True
-                for k in range(i + 1, j):
-                    a, b = peaks[k - 1], peaks[k]
-                    drop_k = distance_signal[a] - np.min(distance_signal[a:b + 1])
-                    dur_k = time_vector[b] - time_vector[a]
-                    if drop_k >= min_drop and dur_k <= max_duration:
-                        no_intermediate_kick = False
+            if drop_start >= min_drop and drop_end >= min_drop and duration <= max_duration:
+                # Tentative d'extension
+                k = j
+                while k + 1 < len(peaks) and (k - i) < max_jump:
+                    next_end = peaks[k + 1]
+                    next_end_val = distance_signal[next_end]
+                    dur_total = time_vector[next_end] - time_vector[start]
+                    if dur_total > max_duration:
                         break
-                if not no_intermediate_kick:
-                    continue
 
-                # Vérifie qu’aucun pic intermédiaire n’est plus haut que le début ou la fin
-                intermediate_higher_peak = False
-                for k in range(i + 1, j):
-                    if distance_signal[peaks[k]] > max(distance_signal[start], distance_signal[end]):
-                        intermediate_higher_peak = True
+                    if next_end_val <= distance_signal[end]:
                         break
-                if intermediate_higher_peak:
-                    continue  # ne valide pas ce kick
 
-                # On garde le j le plus haut possible (pic final le plus élevé)
-                if distance_signal[end] > best_end_val:
-                    best_j = j
-                    best_end = end
-                    best_end_val = distance_signal[end]
+                    duration_next = time_vector[next_end] - time_vector[end]
+                    min_between = np.min(distance_signal[end:next_end + 1])
+                    drop_between = distance_signal[end] - min_between
+                    drop_next = next_end_val - min_between
 
-        if best_j is not None:
-            j = best_j
-            end = best_end
-            while (j + 1 < len(peaks) and (j - i) < max_jump):
-                next_end = peaks[j + 1]
-                if distance_signal[next_end] <= distance_signal[end]:
-                    break
-                drop_between = distance_signal[end] - np.min(distance_signal[end:next_end + 1])
-                dur_between = time_vector[next_end] - time_vector[end]
-                if drop_between >= min_drop and dur_between <= max_duration:
-                    break
-                drop_total = start_val - np.min(distance_signal[start:next_end + 1])
-                dur_total = time_vector[next_end] - time_vector[start]
-                # --- Même contrainte sur les pics intermédiaires dans l’extension !
-                intermediate_higher_peak = False
-                for k in range(i + 1, j + 1):
-                    if distance_signal[peaks[k]] > max(distance_signal[start], distance_signal[next_end]):
-                        intermediate_higher_peak = True
+                    if drop_between >= min_drop and drop_next >= min_drop and duration_next <= max_duration:
                         break
-                if drop_total >= min_drop and dur_total <= max_duration and not intermediate_higher_peak:
-                    j += 1
+
                     end = next_end
-                    continue
+                    end_val = next_end_val
+                    k += 1
+
+                # ====================
+                # Recherche meilleur start entre start et end
+                candidate_starts = [p for p in peaks if start < p < end]
+                candidate_starts = sorted(candidate_starts, key=lambda x: end - x)  # plus proche de la fin d'abord
+                best_start = start
+                for cand_start in candidate_starts:
+                    cand_val = distance_signal[cand_start]
+                    if cand_val < start_val * min_ratio:
+                        continue
+                    # Vérifie critères
+                    duration_cand = time_vector[end] - time_vector[cand_start]
+                    min_in_cand_interval = np.min(distance_signal[cand_start:end + 1])
+                    drop_cand_start = cand_val - min_in_cand_interval
+                    drop_cand_end = end_val - min_in_cand_interval
+                    if duration_cand > max_duration or drop_cand_start < min_drop or drop_cand_end < min_drop:
+                        continue
+                    # Aucun pic intermédiaire plus haut que cand_start ou end
+                    higher_peak = False
+                    for pk in [p for p in peaks if cand_start < p < end]:
+                        if distance_signal[pk] > max(cand_val, end_val):
+                            higher_peak = True
+                            break
+                    if higher_peak:
+                        continue
+                    # Ce candidat est valide
+                    best_start = cand_start
+                    break  # On prend le plus proche de la fin qui convient
+
+                intervals.append((best_start, end))
+                i = np.where(peaks == end)[0][0]
+                found_end = True
                 break
-            intervals.append((start, end))
-            i = j
-        else:
+
+        if not found_end:
             i += 1
 
     return intervals
-
-
-def refine_kick_starts(
-    distance_signal,
-    time_vector,
-    peaks,
-    intervals,
-    min_drop=0.1,
-    max_duration=5.0,
-    min_ratio=0.90,
-    margin=0.10
-):
-    """
-    For each interval (start, end), searches for a better kick start among peaks in [start, end),
-    keeping only candidates with height >= min_ratio * original_start and that satisfy
-    all criteria (duration, drop, no intermediate higher peak).
-
-    Returns: list of (final_start, end) tuples
-    """
-    refined = []
-    for start, end in intervals:
-        start_val = distance_signal[start]
-        # List of all peaks between start and end (inclusive start, exclusive end)
-        candidate_starts = [p for p in peaks if start <= p < end]
-        # Sort candidates by closeness to end (favor closer)
-        candidate_starts = sorted(candidate_starts, key=lambda x: end - x)
-        best_start = start
-        for cand_start in candidate_starts:
-            # Condition 1 : hauteur suffisante
-            if distance_signal[cand_start] < start_val * min_ratio:
-                continue
-            # Condition 2 : durée max
-            duration = time_vector[end] - time_vector[cand_start]
-            if duration > max_duration:
-                continue
-            # Condition 3 : delta min_drop
-            drop = distance_signal[cand_start] - np.min(distance_signal[cand_start:end + 1])
-            if drop < min_drop:
-                continue
-            # Condition 4 : aucun pic intermédiaire trop haut
-            threshold_start = distance_signal[cand_start] * (1 + margin)
-            threshold_end = distance_signal[end]
-            higher_peak = False
-            for k in [p for p in peaks if cand_start < p < end]:
-                if distance_signal[k] > max(threshold_start, threshold_end):
-                    higher_peak = True
-                    break
-            if higher_peak:
-                continue
-            # Tout est OK, on prend ce nouveau start plus proche
-            best_start = cand_start
-            break  # On s'arrête au plus proche valide
-        refined.append((best_start, end))
-    return refined
-
-def refine_kick_ends(
-    distance_signal,
-    time_vector,
-    peaks,
-    intervals,
-    max_peaks_ahead=3,
-    max_creux_ratio=0.10,
-    max_duration=5.0
-):
-    """
-    Pour chaque (start, end), regarde dans les max_peaks_ahead pics qui suivent end si
-    un pic plus haut peut devenir le nouveau kick end, à condition qu'il n'y ait pas un creux
-    (min) supérieur à max_creux_ratio de l'amplitude du kick actuel.
-    Renvoie la liste raffinée des (start, end).
-    """
-    refined = []
-    n_peaks = len(peaks)
-    for start, end in intervals:
-        # Recherche la position de end dans la liste des pics
-        if end not in peaks:
-            refined.append((start, end))
-            continue  # Securité : ne devrait jamais arriver
-        idx = np.where(peaks == end)[0][0]
-        kick_amplitude = distance_signal[start] - np.min(distance_signal[start:end+1])
-        best_end = end
-        best_end_val = distance_signal[end]
-        for offset in range(1, max_peaks_ahead + 1):
-            next_idx = idx + offset
-            if next_idx >= n_peaks:
-                break
-            candidate = peaks[next_idx]
-            # Il faut que le pic soit plus haut que end actuel
-            if distance_signal[candidate]*1.1 <= best_end_val:
-                continue
-            # Il ne doit pas y avoir de creux supérieur à 10% de l'amplitude
-            min_between = np.min(distance_signal[end:candidate+1])
-            creux = best_end_val - min_between
-            if creux > max_creux_ratio * kick_amplitude:
-                continue
-            # Optionnel : durée totale ne doit pas excéder max_duration
-            duration = time_vector[candidate] - time_vector[start]
-            if duration > max_duration:
-                continue
-            # Nouveau end accepté (on prend le premier admissible le plus proche)
-            best_end = candidate
-            best_end_val = distance_signal[candidate]
-            # break pour prendre le plus proche, sinon continue pour prendre le plus haut
-            break
-        refined.append((start, best_end))
-    return refined
 
 
 def kicking(
@@ -202,6 +98,9 @@ def kicking(
         ankle_marker,
         time_duration,
         leg_length,
+        KNE,
+        PEL,
+        ANK,
         plot=False
             ):
     """
@@ -228,32 +127,35 @@ def kicking(
     distance_pelv_ank = np.linalg.norm(pelvis_marker - ankle_marker, axis=1)
 
     # Normalize the distance by the leg length to account for subject variability
-    distance_pelv_ank_norm = distance_pelv_ank / leg_length
+    distance_pelv_ank_norm_nofilt = distance_pelv_ank / leg_length
+
+    knee_angle = 180 - angle_from_vector(KNE, PEL, ANK)
+
+    # Apply Butterworth filter (6 Hz cutoff)
+    cutoff = 6  # Cutoff frequency (Hz)
+    knee_angle_filt = butter_lowpass_filter(knee_angle, cutoff, 200, order=2)
+    distance_pelv_ank_norm = butter_lowpass_filter(distance_pelv_ank_norm_nofilt, cutoff, 200, order=2)
 
     # Detect peaks in the normalized distance signal (corresponding to extension phases)
-    # Thresholds are adaptively set based on the 50th percentile and minimum peak prominence
     peaks, _ = find_peaks(
-        distance_pelv_ank_norm,
+        knee_angle_filt,
         distance=3,
-        prominence=0.02 * (np.max(distance_pelv_ank_norm) - np.min(distance_pelv_ank_norm))
-
+        prominence=0.1 * (np.max(knee_angle_filt) - np.min(knee_angle_filt))
     )
 
-    kick_intervals = extract_kick_intervals(distance_pelv_ank_norm, time_duration, peaks)
-    refined_intervals_start = refine_kick_starts(distance_pelv_ank_norm,  time_duration, peaks, kick_intervals)
-    refined_intervals_start_end = refine_kick_ends(distance_pelv_ank_norm,  time_duration, peaks, refined_intervals_start)
+    kick_intervals = extract_kick_intervals(knee_angle_filt, time_duration, peaks, min_drop=20)
 
     kicking_cycle_data = []
 
     if plot:
         plt.figure(figsize=(12, 6))
-        plt.plot(time_duration, distance_pelv_ank_norm, label='Normalized pelvis-ankle distance', color='blue')
-        plt.scatter(time_duration[peaks], distance_pelv_ank_norm[peaks], color='orange', marker='o',
+        plt.plot(time_duration, knee_angle_filt, label='Normalized pelvis-ankle distance', color='blue')
+        plt.scatter(time_duration[peaks], knee_angle_filt[peaks], color='orange', marker='o',
                     label='Detected peaks')
-        for i, (start, end) in enumerate(refined_intervals_start_end):
-            plt.scatter(time_duration[start], distance_pelv_ank_norm[start], color='yellow', label='Kick start' if i == 0 else "",
+        for i, (start, end) in enumerate(kick_intervals):
+            plt.scatter(time_duration[start], knee_angle_filt[start], color='green', label='Kick start' if i == 0 else "",
                         zorder=3)
-            plt.scatter(time_duration[end], distance_pelv_ank_norm[end], color='purple', label='Kick end' if i == 0 else "", zorder=3)
+            plt.scatter(time_duration[end], knee_angle_filt[end], color='red', label='Kick end' if i == 0 else "", zorder=3)
 
 
         plt.xlabel("Time (s)")
@@ -270,7 +172,7 @@ def kicking(
         end = peaks[i + 1]
 
         # Extract the segment of the signal and corresponding time
-        segment = distance_pelv_ank_norm[start:end]
+        segment = knee_angle_filt[start:end]
         segment_time = time_duration[start:end]
 
         if len(segment) < 2:
@@ -280,8 +182,8 @@ def kicking(
         # Flexion: from initial extension peak to minimum
         # Extension: from minimum to next extension peak
 
-        start_val = distance_pelv_ank_norm[start]
-        end_val = distance_pelv_ank_norm[end]
+        start_val = knee_angle_filt[start]
+        end_val = knee_angle_filt[end]
 
         min_idx = np.argmin(segment)
         min_val = segment[min_idx]
@@ -329,7 +231,7 @@ def kicking(
         })
 
     # Return list of cycle-level features and the full normalized distance signal
-    return kicking_cycle_data, distance_pelv_ank_norm
+    return kicking_cycle_data, distance_pelv_ank
 
 def get_mean_and_std(kicking_cycle_data):
     # Convert the list of dicts to a DataFrame
@@ -347,8 +249,32 @@ def get_mean_and_std(kicking_cycle_data):
 
     return mean_std_kicking_values
 
-def shoudler_knee_distance(LKNE, RKNE, LSHO, RSHO):
-    distance_knee_shoulder_right = np.linalg.norm(LKNE - LSHO, axis=1)
-    distance_knee_shoulder_left = np.linalg.norm(RKNE - RSHO, axis=1)
-    return distance_knee_shoulder_right, distance_knee_shoulder_left
+def synchro_hip_knee(time_vector, PEL, KNE, SHO, ANK, plot=False):
+
+    hip_angle = angle_from_vector(PEL, SHO, KNE)
+    knee_angle = angle_from_vector(KNE, PEL, ANK)
+
+    if plot:
+        plot_time_series(time_vector, knee_angle=knee_angle, hip_angle=hip_angle, title="Angle synchro", ylabel="Angle (°)")
+
+    return knee_angle, hip_angle
+
+def angle_from_vector(mid, prox, dist):
+    """
+    Computes the hip angle at each frame using pelvis, knee, and shoulder 3D coordinates.
+    """
+    vec_thigh = mid - dist
+    vec_body = prox - mid
+
+    # Normalize vectors
+    vec_thigh_norm = vec_thigh / np.linalg.norm(vec_thigh, axis=1, keepdims=True)
+    vec_body_norm = vec_body / np.linalg.norm(vec_body, axis=1, keepdims=True)
+
+    # Angle using dot product
+    dot = np.sum(vec_thigh_norm * vec_body_norm, axis=1)
+    dot = np.clip(dot, -1, 1)  # Numerical safety
+    angles = np.degrees(np.arccos(dot))
+
+    return angles
+
 

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import pandas as pd
 from scipy.interpolate import interp1d
-from scipy.signal import hilbert, correlate
+from scipy.signal import hilbert, correlate, butter, filtfilt
 matplotlib.use("TkAgg")
 
 
@@ -242,6 +242,45 @@ def get_leg_and_tibia_length(file_path, bambiID):
     leg_length = leg_length * 10
     tibia_length =  tibia_length * 10
     return leg_length, tibia_length
+
+
+def butter_lowpass_filter(data, cutoff, fs, order=2):
+    """
+    Applies a low-pass Butterworth filter to a 1D or 2D signal.
+
+    Parameters:
+        data   : array-like, shape (n_samples,) or (n_samples, n_channels)
+                 Input signal(s) to filter.
+        cutoff : float
+                 Cutoff frequency in Hz.
+        fs     : float
+                 Sampling frequency in Hz.
+        order  : int
+                 Order of the Butterworth filter (default: 2).
+
+    Returns:
+        filtered_data : np.ndarray, filtered signal(s), same shape as input.
+    """
+    nyq = 0.5 * fs                 # Nyquist frequency
+    normal_cutoff = cutoff / nyq   # Normalized cutoff frequency
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    filtered_data = filtfilt(b, a, data, axis=0)  # Zero-phase filtering
+    return filtered_data
+
+def get_body_length(RPEL, LPEL, RSHO, LSHO):
+    """
+    Compute the mean body segment length (pelvis to shoulder) for left and right sides.
+    Raises an error if there is a large discrepancy (marker issue).
+    """
+    body_right = np.linalg.norm(RPEL - RSHO, axis=1)
+    body_left = np.linalg.norm(LPEL - LSHO, axis=1)
+    mean_right = np.mean(body_right)
+    mean_left = np.mean(body_left)
+    if abs(mean_right - mean_left) > 50:
+        raise ValueError("Verify marker placement between right and left side of the body")
+    else:
+        return (mean_left+mean_right)/2
+
 
 # === STEP 1: Compute angular threshold from cohort-wide shoulder widths ===
 
