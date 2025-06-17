@@ -126,13 +126,6 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     kicking_cycle_outcomes_right, distance_kicking_right = kicking(RPEL,RANK, time_duration, leg_length, RKNE, RPEL, RANK, plot=True)
     mean_std_kicking_values_right = get_mean_and_std(kicking_cycle_outcomes_right)
 
-    # phase_antiphase(distance_kicking_left,distance_kicking_right, time_duration)
-
-
-    # phase_antiphase(distance_knee_shoulder_right, distance_kicking_right, time_duration)
-
-    # phase_antiphase(distance_knee_shoulder_left, distance_kicking_left, time_duration)
-
     knee_angle_right, hip_angle_right = synchro_hip_knee(time_duration, RPEL, RKNE, RSHO, RANK, plot=False)
     knee_angle_left, hip_angle_left = synchro_hip_knee(time_duration, LPEL, LKNE, LSHO, LANK, plot=False)
 
@@ -146,8 +139,8 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     plantar_plantar_contact_outcomes, foot_foot_contact_outcomes = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=150, threshold_knee=300, time_vector=time_duration, plot=False)
 
     ## Leg lifting
-    right_lift_with_leg_extend, distance_pelv_ank_right = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30, plot=False)
-    left_lift_with_leg_extend, distance_pelv_ank_left = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=200, high_threshold=80, max_flexion=30, plot=False)
+    right_lift_with_leg_extend, distance_pelv_ank_right = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=80, max_flexion=30, plot=False)
+    left_lift_with_leg_extend, distance_pelv_ank_left = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=80, max_flexion=30, plot=False)
 
     # phase_antiphase(distance_pelv_ank_right, distance_pelv_ank_left, time_duration)
 
