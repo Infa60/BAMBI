@@ -231,7 +231,194 @@ def kicking(
         })
 
     # Return list of cycle-level features and the full normalized distance signal
-    return kicking_cycle_data, distance_pelv_ank
+    return kicking_cycle_data, distance_pelv_ank, kick_intervals
+
+
+def knee_hip_correlation(knee_angle, hip_angle, kick_intervals):
+    """
+    A lag < 0 means that the hip precedes the knee (the hip “moves” before the knee in the cycle).
+    A lag > 0 means that the knee precedes the hip (the knee “moves” before the hip).
+    """
+    correlations = []
+    lags = []
+    for i, (start, end) in enumerate(kick_intervals):
+        # Extract the knee and hip angle segments for the current interval
+        knee_segment = knee_angle[start:end]
+        knee_segment_norm = resample_size(knee_segment, 100)  # Resample to 100 points
+
+        hip_segment = hip_angle[start:end]
+        hip_segment_norm = resample_size(hip_segment, 100)  # Resample to 100 points
+
+        # Compute the Pearson correlation coefficient (classical, direct alignment)
+        corr = np.corrcoef(knee_segment_norm, hip_segment_norm)[0, 1]
+        correlations.append(corr)
+
+        # Compute the cross-correlation to find the optimal lag (temporal shift)
+        cross_corr = np.correlate(
+            knee_segment_norm - np.mean(knee_segment_norm),
+            hip_segment_norm - np.mean(hip_segment_norm),
+            mode='full'
+        )
+        # Array of lag values corresponding to the cross-correlation output
+        lags_arr = np.arange(-len(knee_segment_norm) + 1, len(knee_segment_norm))
+        # Find the lag with the maximum absolute correlation value
+        lag_opt = lags_arr[np.argmax(np.abs(cross_corr))]
+        lags.append(lag_opt)
+
+    # Convert correlations list to a NumPy array for easier computation
+    correlations = np.array(correlations)
+    lags = np.array(lags)
+
+    # Calculate mean and standard deviation of the correlations and lags
+    mean_corr = np.nanmean(correlations)
+    std_corr = np.nanstd(correlations)
+    mean_lags = np.nanmean(lags)
+    std_lags = np.nanstd(lags)
+
+    fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+
+    # Histogram for correlations
+    axs[0].hist(correlations, bins=20)
+    axs[0].set_xlabel("Knee-Hip Correlation")
+    axs[0].set_ylabel("Number of kicks")
+    axs[0].set_title("Distribution of correlations per cycle")
+
+    # Histogram for lags
+    axs[1].hist(lags, bins=10)
+    axs[1].set_xlabel("Lag (in samples)")
+    axs[1].set_ylabel("Number of kicks")
+    axs[1].set_title("Distribution of optimal lags")
+
+    plt.tight_layout()
+    plt.show()
+
+def classify_kicks_percent_threshold(
+    kick_intervals_d, kick_intervals_g, knee_angle_d, knee_angle_g, fs, simult_threshold_pct=0.1
+):
+    """
+    Classifies each detected kick as single, alternate, simultaneous, or semi-bilateral,
+    using a threshold defined as a percentage of the cycle duration.
+
+    Parameters:
+    - kick_intervals_d: list of (start, end) for right knee kicks (indices)
+    - kick_intervals_g: list of (start, end) for left knee kicks (indices)
+    - knee_angle_d: array of right knee angles
+    - knee_angle_g: array of left knee angles
+    - fs: sampling frequency (Hz)
+    - simult_threshold_pct: time threshold (fraction of cycle duration, e.g., 0.1 for 10%)
+
+    Returns:
+    - List of dictionaries, each with classification info for each detected kick
+    """
+
+    # Get time of peak extension (maximum angle) within each interval
+    kicks_d = []
+    for (start, end) in kick_intervals_d:
+        idx_peak = start + np.argmax(knee_angle_d[start:end])
+        kicks_d.append({'side': 'right', 'index': idx_peak, 'start': start, 'end': end})
+
+    kicks_g = []
+    for (start, end) in kick_intervals_g:
+        idx_peak = start + np.argmax(knee_angle_g[start:end])
+        kicks_g.append({'side': 'left', 'index': idx_peak, 'start': start, 'end': end})
+
+    # Merge all peaks into a single list for sequential analysis
+    events = kicks_d + kicks_g
+    print(len(events))
+    events = sorted(events, key=lambda x: x['index'])
+
+    results = []
+    used = set()
+    for i, evt in enumerate(events):
+        if i in used:
+            continue
+        side = evt['side']
+        idx = evt['index']
+        start = evt['start']
+        end = evt['end']
+
+        # Find the nearest kick from the other side
+        min_delta = float('inf')
+        other_evt = None
+        other_i = None
+        for j, evt2 in enumerate(events):
+            if i == j or evt2['side'] == side:
+                continue
+            delta = abs(evt2['index'] - idx)
+            # Use average cycle duration for the current and compared kicks
+            cycle_duration = int(np.mean([end - start, evt2['end'] - evt2['start']]))
+            simult_threshold = simult_threshold_pct * cycle_duration
+            if delta < min_delta:
+                min_delta = delta
+                other_evt = evt2
+                other_i = j
+                current_threshold = simult_threshold  # Keep the adaptive threshold
+
+        # Classification logic with adaptive threshold
+        if min_delta < current_threshold and other_i not in used:
+            # Simultaneous kick - add BOTH kicks as simultaneous
+            results.append({
+                'type': 'simultaneous',
+                'main_side': side,
+                'main_index': idx,
+                'paired_index': other_evt['index'],
+                'lag_sec': (other_evt['index'] - idx) / fs,
+                'cycle_duration': cycle_duration,
+                'threshold_points': current_threshold
+            })
+            results.append({
+                'type': 'simultaneous',
+                'main_side': other_evt['side'],
+                'main_index': other_evt['index'],
+                'paired_index': idx,
+                'lag_sec': (idx - other_evt['index']) / fs,
+                'cycle_duration': cycle_duration,
+                'threshold_points': current_threshold
+            })
+            used.add(i)
+            used.add(other_i)
+        else:
+            # Check if alternate or single
+            previous_other = [evt2['index'] for evt2 in events[:i] if evt2['side'] != side]
+            next_other = [evt2['index'] for evt2 in events[i + 1:] if evt2['side'] != side]
+            if previous_other and next_other:
+                interval = (next_other[0] - previous_other[-1])
+                dist_prev = abs(idx - previous_other[-1])
+                dist_next = abs(next_other[0] - idx)
+                if abs(dist_prev - dist_next) < simult_threshold_pct * interval:
+                    results.append({
+                        'type': 'alternate',
+                        'main_side': side,
+                        'main_index': idx,
+                        'paired_index': None,
+                        'lag_sec': None,
+                        'cycle_duration': interval,
+                        'threshold_points': simult_threshold_pct * interval
+                    })
+                else:
+                    results.append({
+                        'type': 'single',
+                        'main_side': side,
+                        'main_index': idx,
+                        'paired_index': None,
+                        'lag_sec': None,
+                        'cycle_duration': interval,
+                        'threshold_points': simult_threshold_pct * interval
+                    })
+            else:
+                # No kick at all on the other side nearby
+                results.append({
+                    'type': 'single',
+                    'main_side': side,
+                    'main_index': idx,
+                    'paired_index': None,
+                    'lag_sec': None,
+                    'cycle_duration': None,
+                    'threshold_points': None
+                })
+    return results
+
+
 
 def get_mean_and_std(kicking_cycle_data):
     # Convert the list of dicts to a DataFrame
