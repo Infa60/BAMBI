@@ -292,12 +292,13 @@ def knee_hip_correlation(knee_angle, hip_angle, kick_intervals):
     plt.tight_layout()
     plt.show()
 
-def classify_kicks_percent_threshold(
-    kick_intervals_d, kick_intervals_g, knee_angle_d, knee_angle_g, fs, simult_threshold_pct=0.1
+
+def classify_kicks(
+    kick_intervals_d, kick_intervals_g, knee_angle_d, knee_angle_g, fs, simult_threshold_pct=0.1, window=5
 ):
     """
-    Classifies each detected kick as single, alternate, simultaneous, or semi-bilateral,
-    using a threshold defined as a percentage of the cycle duration.
+    Classifies each detected kick as single, alternate, or simultaneous,
+    using a biomechanical definition (alternate = l'autre jambe en phase opposée).
 
     Parameters:
     - kick_intervals_d: list of (start, end) for right knee kicks (indices)
@@ -306,119 +307,116 @@ def classify_kicks_percent_threshold(
     - knee_angle_g: array of left knee angles
     - fs: sampling frequency (Hz)
     - simult_threshold_pct: time threshold (fraction of cycle duration, e.g., 0.1 for 10%)
+    - window: number of samples before/after the kick peak for phase estimation
 
     Returns:
-    - List of dictionaries, each with classification info for each detected kick
+    - List of dictionaries, one per kick, each with classification info
     """
 
-    # Get time of peak extension (maximum angle) within each interval
-    kicks_d = []
+    # 1. Trouver le pic de chaque kick et stocker
+    kicks = []
     for (start, end) in kick_intervals_d:
         idx_peak = start + np.argmax(knee_angle_d[start:end])
-        kicks_d.append({'side': 'right', 'index': idx_peak, 'start': start, 'end': end})
-
-    kicks_g = []
+        kicks.append({'side': 'right', 'index': idx_peak, 'start': start, 'end': end})
     for (start, end) in kick_intervals_g:
         idx_peak = start + np.argmax(knee_angle_g[start:end])
-        kicks_g.append({'side': 'left', 'index': idx_peak, 'start': start, 'end': end})
+        kicks.append({'side': 'left', 'index': idx_peak, 'start': start, 'end': end})
 
-    # Merge all peaks into a single list for sequential analysis
-    events = kicks_d + kicks_g
-    print(len(events))
-    events = sorted(events, key=lambda x: x['index'])
+    kicks = sorted(kicks, key=lambda x: x['index'])
+    n = len(kicks)
 
-    results = []
-    used = set()
-    for i, evt in enumerate(events):
-        if i in used:
+    # 2. Pré-classification : simultaneous (moins de X% du cycle)
+    simult_groups = []
+    assigned = np.zeros(n, dtype=bool)
+    for i in range(n):
+        if assigned[i]:
             continue
-        side = evt['side']
-        idx = evt['index']
-        start = evt['start']
-        end = evt['end']
-
-        # Find the nearest kick from the other side
-        min_delta = float('inf')
-        other_evt = None
-        other_i = None
-        for j, evt2 in enumerate(events):
-            if i == j or evt2['side'] == side:
+        group = [i]
+        idx_i = kicks[i]['index']
+        side_i = kicks[i]['side']
+        duration_i = kicks[i]['end'] - kicks[i]['start']
+        for j in range(i+1, n):
+            if assigned[j]:
                 continue
-            delta = abs(evt2['index'] - idx)
-            # Use average cycle duration for the current and compared kicks
-            cycle_duration = int(np.mean([end - start, evt2['end'] - evt2['start']]))
-            simult_threshold = simult_threshold_pct * cycle_duration
-            if delta < min_delta:
-                min_delta = delta
-                other_evt = evt2
-                other_i = j
-                current_threshold = simult_threshold  # Keep the adaptive threshold
+            idx_j = kicks[j]['index']
+            duration_j = kicks[j]['end'] - kicks[j]['start']
+            # Use average duration of two kicks
+            cycle_duration = int(np.mean([duration_i, duration_j]))
+            threshold = simult_threshold_pct * cycle_duration
+            if abs(idx_i - idx_j) <= threshold:
+                group.append(j)
+        if len(group) > 1:
+            for k in group:
+                assigned[k] = True
+            simult_groups.append(group)
 
-        # Classification logic with adaptive threshold
-        if min_delta < current_threshold and other_i not in used:
-            # Simultaneous kick - add BOTH kicks as simultaneous
-            results.append({
-                'type': 'simultaneous',
-                'main_side': side,
-                'main_index': idx,
-                'paired_index': other_evt['index'],
-                'lag_sec': (other_evt['index'] - idx) / fs,
-                'cycle_duration': cycle_duration,
-                'threshold_points': current_threshold
-            })
-            results.append({
-                'type': 'simultaneous',
-                'main_side': other_evt['side'],
-                'main_index': other_evt['index'],
-                'paired_index': idx,
-                'lag_sec': (idx - other_evt['index']) / fs,
-                'cycle_duration': cycle_duration,
-                'threshold_points': current_threshold
-            })
-            used.add(i)
-            used.add(other_i)
+    # Marquer tous les kicks simultanés
+    labels = [None]*n
+    for group in simult_groups:
+        for idx in group:
+            labels[idx] = 'simultaneous'
+
+    # 3. Alternate: une jambe en flexion, l'autre en extension
+    # Pour tous les kicks non déjà marqués simultanés
+    for i in range(n):
+        if labels[i] is not None:
+            continue
+        my_kick = kicks[i]
+        my_side = my_kick['side']
+        my_idx = my_kick['index']
+        # Déterminer l'angle opposé à ce moment
+        if my_side == 'right':
+            other_angle = knee_angle_g
         else:
-            # Check if alternate or single
-            previous_other = [evt2['index'] for evt2 in events[:i] if evt2['side'] != side]
-            next_other = [evt2['index'] for evt2 in events[i + 1:] if evt2['side'] != side]
-            if previous_other and next_other:
-                interval = (next_other[0] - previous_other[-1])
-                dist_prev = abs(idx - previous_other[-1])
-                dist_next = abs(next_other[0] - idx)
-                if abs(dist_prev - dist_next) < simult_threshold_pct * interval:
-                    results.append({
-                        'type': 'alternate',
-                        'main_side': side,
-                        'main_index': idx,
-                        'paired_index': None,
-                        'lag_sec': None,
-                        'cycle_duration': interval,
-                        'threshold_points': simult_threshold_pct * interval
-                    })
-                else:
-                    results.append({
-                        'type': 'single',
-                        'main_side': side,
-                        'main_index': idx,
-                        'paired_index': None,
-                        'lag_sec': None,
-                        'cycle_duration': interval,
-                        'threshold_points': simult_threshold_pct * interval
-                    })
-            else:
-                # No kick at all on the other side nearby
-                results.append({
-                    'type': 'single',
-                    'main_side': side,
-                    'main_index': idx,
-                    'paired_index': None,
-                    'lag_sec': None,
-                    'cycle_duration': None,
-                    'threshold_points': None
-                })
+            other_angle = knee_angle_d
+        # Fenêtre de quelques points avant/après
+        w = window
+        before = np.mean(other_angle[max(my_idx-w,0): my_idx])
+        after = np.mean(other_angle[my_idx: my_idx+w])
+        slope = after - before
+
+        # On considère "alternate" si la jambe qui fait un kick a une dérivée opposée à celle de l'autre jambe
+        # On checke si, autour du pic, l'autre jambe a un mouvement opposé (ou une amplitude opposée)
+        # Ici : slope négatif -> l'autre jambe part en extension pendant que celle-ci est en flexion
+        if slope < 0:
+            labels[i] = 'alternate'
+
+    # Pour que les alternates soient bien marqués par paires (voire plus : séquences alternées !)
+    # On relit et groupe toutes les alternances proches
+    already_marked = set()
+    for i in range(n):
+        if labels[i] == 'alternate' and i not in already_marked:
+            # Cherche tous les alternates proches dans le temps (dans la même séquence d'alternance)
+            group = [i]
+            idx_i = kicks[i]['index']
+            side_i = kicks[i]['side']
+            for j in range(i+1, n):
+                if labels[j] == 'alternate' and kicks[j]['side'] != side_i:
+                    idx_j = kicks[j]['index']
+                    # Si moins de demi-cycle d'écart → même alternance
+                    if abs(idx_i - idx_j) < 0.5 * (kicks[i]['end']-kicks[i]['start']):
+                        group.append(j)
+            # Marque le groupe
+            for k in group:
+                already_marked.add(k)
+                labels[k] = 'alternate'
+
+    # 4. Les autres sont des singles
+    for i in range(n):
+        if labels[i] is None:
+            labels[i] = 'single'
+
+    # 5. Construction du résultat
+    results = []
+    for i in range(n):
+        results.append({
+            'type': labels[i],
+            'side': kicks[i]['side'],
+            'index': kicks[i]['index'],
+            'start': kicks[i]['start'],
+            'end': kicks[i]['end'],
+        })
     return results
-
-
 
 def get_mean_and_std(kicking_cycle_data):
     # Convert the list of dicts to a DataFrame

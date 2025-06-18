@@ -1,5 +1,6 @@
 import scipy.io
 from scipy.stats import skew
+from collections import Counter
 from PythonFunction.Ellipsoid import (
     plot_ellipsoid_and_points_stickman
 )
@@ -120,20 +121,27 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     hand_hand_contact = distance_hand_hand(LWRA, RWRA, threshold=50, time_vector=time_duration, plot=False)
 
     ## Kicking
-    kicking_cycle_outcomes_left, distance_kicking_left = kicking(LPEL,LANK, time_duration, leg_length, LKNE, LPEL, LANK, plot=True)
+    kicking_cycle_outcomes_left, distance_kicking_left, kick_intervals_left = kicking(LPEL,LANK, time_duration, leg_length, LKNE, LPEL, LANK, plot=False)
     mean_std_kicking_values_left = get_mean_and_std(kicking_cycle_outcomes_left)
 
-    kicking_cycle_outcomes_right, distance_kicking_right = kicking(RPEL,RANK, time_duration, leg_length, RKNE, RPEL, RANK, plot=True)
+    kicking_cycle_outcomes_right, distance_kicking_right, kick_intervals_right = kicking(RPEL,RANK, time_duration, leg_length, RKNE, RPEL, RANK, plot=False)
     mean_std_kicking_values_right = get_mean_and_std(kicking_cycle_outcomes_right)
 
     knee_angle_right, hip_angle_right = synchro_hip_knee(time_duration, RPEL, RKNE, RSHO, RANK, plot=False)
     knee_angle_left, hip_angle_left = synchro_hip_knee(time_duration, LPEL, LKNE, LSHO, LANK, plot=False)
+
+    knee_hip_correlation(knee_angle_right, hip_angle_right, kick_intervals_right)
 
     #phase_antiphase(knee_angle_right, hip_angle_right, time_duration)
     #phase_antiphase(knee_angle_left, hip_angle_left, time_duration)
 
     #phase_antiphase(knee_angle_right, knee_angle_left, time_duration)
 
+    classification_results = classify_kicks(kick_intervals_right, kick_intervals_left, knee_angle_right, knee_angle_left, fs=200, simult_threshold_pct=0.1, window=5)
+
+    type_counts = Counter(r['type'] for r in classification_results)
+    for k, v in type_counts.items():
+        print(f"{k}: {v}")
 
     ## Foot-foot contact
     plantar_plantar_contact_outcomes, foot_foot_contact_outcomes = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=150, threshold_knee=300, time_vector=time_duration, plot=False)
