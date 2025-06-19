@@ -14,6 +14,7 @@ from PythonFunction.Members_contact import *
 from PythonFunction.Body_symmetry import *
 from PythonFunction.Head_contact_orientation import *
 from PythonFunction.Base_function import *
+from PythonFunction.TEST import *
 
 # Set matplotlib backend
 matplotlib.use("TkAgg")
@@ -147,6 +148,13 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     type_counts = Counter(r['type'] for r in classification_results)
     for k, v in type_counts.items():
         print(f"{k}: {v}")
+
+    # Liste de sauvegarde
+    labeled_kicks = []
+
+    # Exemple : parcourir tous les kicks droits
+    for (start, end) in kick_intervals_right:
+        label_and_save_kick(knee_angle_right, knee_angle_left, start, end, 'right', labeled_kicks)
 
     ## Foot-foot contact
     plantar_plantar_contact_outcomes, foot_foot_contact_outcomes = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=150, threshold_knee=300, time_vector=time_duration, plot=False)
