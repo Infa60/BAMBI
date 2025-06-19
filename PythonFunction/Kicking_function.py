@@ -369,8 +369,10 @@ def classify_kicks(
 
     # Optionally, sort by time
     results = sorted(results, key=lambda x: x['index'])
+    return results
 
-    # Optional: plotting, not included here for brevity
+
+def plot_kick_classification_with_bars(knee_angle_d, knee_angle_g, results, fs):
     # Color code for bars
     bar_colors = {'single': 'gold', 'alternate': 'violet', 'simultaneous': 'deepskyblue'}
     label_map = {'single': 'Single', 'alternate': 'Alternate', 'simultaneous': 'Simultaneous'}
@@ -427,16 +429,14 @@ def classify_kicks(
     ]
     handles, labels_ = plt.gca().get_legend_handles_labels()
     by_label = dict(zip(labels_, handles))
-    plt.legend(legend_patches + list(by_label.values()),
-               [p.get_label() for p in legend_patches] + list(by_label.keys()), loc="upper right")
+    plt.legend(legend_patches + list(by_label.values()), [p.get_label() for p in legend_patches] + list(by_label.keys()), loc="upper right")
 
-    plt.ylim(bar_y_bot - bar_height, bar_y_top + bar_height * 2)
+    plt.ylim(bar_y_bot - bar_height, bar_y_top + bar_height*2)
     plt.xlabel("Time (s)")
     plt.ylabel("Knee Angle (deg)")
     plt.title("Knee angles with labeled kicks and color code bars (top: Right, bottom: Left)")
     plt.tight_layout()
     plt.show()
-    return results
 
 def get_mean_and_std(kicking_cycle_data):
     # Convert the list of dicts to a DataFrame

@@ -241,11 +241,11 @@ def label_and_save_kick(knee_angle_d, knee_angle_g, start, end, kick_side, save_
 
     plt.subplots_adjust(bottom=0.25)
 
-    label_dict = {'label': None}
+    label_dict = {'type': None}
 
 
     def on_label(label):
-        label_dict['label'] = label
+        label_dict['type'] = label
         plt.close(fig)
         save_list.append({
             'side': kick_side,
@@ -253,7 +253,7 @@ def label_and_save_kick(knee_angle_d, knee_angle_g, start, end, kick_side, save_
             'end': end,
             'knee_angle_d': knee_angle_d[start:end].copy(),
             'knee_angle_g': knee_angle_g[start:end].copy(),
-            'label': label
+            'type': label
         })
 
     # Add buttons

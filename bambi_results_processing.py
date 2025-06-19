@@ -149,12 +149,17 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     for k, v in type_counts.items():
         print(f"{k}: {v}")
 
+    plot_kick_classification_with_bars(knee_angle_right, knee_angle_left, classification_results, freq)
+
     # Liste de sauvegarde
     labeled_kicks = []
 
     # Exemple : parcourir tous les kicks droits
     for (start, end) in kick_intervals_right:
         label_and_save_kick(knee_angle_right, knee_angle_left, start, end, 'right', labeled_kicks)
+
+    plot_kick_classification_with_bars(knee_angle_right, knee_angle_left, labeled_kicks, freq)
+
 
     ## Foot-foot contact
     plantar_plantar_contact_outcomes, foot_foot_contact_outcomes = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=150, threshold_knee=300, time_vector=time_duration, plot=False)
