@@ -101,6 +101,7 @@ def kicking(
         KNE,
         PEL,
         ANK,
+        freq,
         plot=False
             ):
     """
@@ -133,7 +134,7 @@ def kicking(
 
     # Apply Butterworth filter (6 Hz cutoff)
     cutoff = 6  # Cutoff frequency (Hz)
-    knee_angle_filt = butter_lowpass_filter(knee_angle, cutoff, 200, order=2)
+    knee_angle_filt = butter_lowpass_filter(knee_angle, cutoff, freq, order=2)
     distance_pelv_ank_norm = butter_lowpass_filter(distance_pelv_ank_norm_nofilt, cutoff, 200, order=2)
 
     # Detect peaks in the normalized distance signal (corresponding to extension phases)
@@ -284,7 +285,7 @@ def knee_hip_correlation(knee_angle, hip_angle, kick_intervals):
     axs[0].set_title("Distribution of correlations per cycle")
 
     # Histogram for lags
-    axs[1].hist(lags, bins=10)
+    axs[1].hist(lags, bins=20)
     axs[1].set_xlabel("Lag (in samples)")
     axs[1].set_ylabel("Number of kicks")
     axs[1].set_title("Distribution of optimal lags")
@@ -294,128 +295,147 @@ def knee_hip_correlation(knee_angle, hip_angle, kick_intervals):
 
 
 def classify_kicks(
-    kick_intervals_d, kick_intervals_g, knee_angle_d, knee_angle_g, fs, simult_threshold_pct=0.1, window=5
+    kick_intervals_d, kick_intervals_g, knee_angle_d, knee_angle_g, fs,
+    simult_threshold_s=0.15,
+    overlap_threshold_s=0.25,
+    plot=False
 ):
     """
     Classifies each detected kick as single, alternate, or simultaneous,
-    using a biomechanical definition (alternate = l'autre jambe en phase opposée).
-
-    Parameters:
-    - kick_intervals_d: list of (start, end) for right knee kicks (indices)
-    - kick_intervals_g: list of (start, end) for left knee kicks (indices)
-    - knee_angle_d: array of right knee angles
-    - knee_angle_g: array of left knee angles
-    - fs: sampling frequency (Hz)
-    - simult_threshold_pct: time threshold (fraction of cycle duration, e.g., 0.1 for 10%)
-    - window: number of samples before/after the kick peak for phase estimation
-
-    Returns:
-    - List of dictionaries, one per kick, each with classification info
+    using explicit matching but only annotates the current kick (not its pair).
     """
 
-    # 1. Trouver le pic de chaque kick et stocker
-    kicks = []
+    # Helper: find min value index in an interval
+    def find_min_idx(signal, start, end):
+        return start + np.argmin(signal[start:end])
+
+    # Convert interval lists to list of dicts
+    kicks_d = []
     for (start, end) in kick_intervals_d:
-        idx_peak = start + np.argmax(knee_angle_d[start:end])
-        kicks.append({'side': 'right', 'index': idx_peak, 'start': start, 'end': end})
+        idx_min = find_min_idx(knee_angle_d, start, end)
+        kicks_d.append({'side': 'right', 'start': start, 'end': end, 'min': idx_min})
+
+    kicks_g = []
     for (start, end) in kick_intervals_g:
-        idx_peak = start + np.argmax(knee_angle_g[start:end])
-        kicks.append({'side': 'left', 'index': idx_peak, 'start': start, 'end': end})
+        idx_min = find_min_idx(knee_angle_g, start, end)
+        kicks_g.append({'side': 'left', 'start': start, 'end': end, 'min': idx_min})
 
-    kicks = sorted(kicks, key=lambda x: x['index'])
-    n = len(kicks)
-
-    # 2. Pré-classification : simultaneous (moins de X% du cycle)
-    simult_groups = []
-    assigned = np.zeros(n, dtype=bool)
-    for i in range(n):
-        if assigned[i]:
-            continue
-        group = [i]
-        idx_i = kicks[i]['index']
-        side_i = kicks[i]['side']
-        duration_i = kicks[i]['end'] - kicks[i]['start']
-        for j in range(i+1, n):
-            if assigned[j]:
-                continue
-            idx_j = kicks[j]['index']
-            duration_j = kicks[j]['end'] - kicks[j]['start']
-            # Use average duration of two kicks
-            cycle_duration = int(np.mean([duration_i, duration_j]))
-            threshold = simult_threshold_pct * cycle_duration
-            if abs(idx_i - idx_j) <= threshold:
-                group.append(j)
-        if len(group) > 1:
-            for k in group:
-                assigned[k] = True
-            simult_groups.append(group)
-
-    # Marquer tous les kicks simultanés
-    labels = [None]*n
-    for group in simult_groups:
-        for idx in group:
-            labels[idx] = 'simultaneous'
-
-    # 3. Alternate: une jambe en flexion, l'autre en extension
-    # Pour tous les kicks non déjà marqués simultanés
-    for i in range(n):
-        if labels[i] is not None:
-            continue
-        my_kick = kicks[i]
-        my_side = my_kick['side']
-        my_idx = my_kick['index']
-        # Déterminer l'angle opposé à ce moment
-        if my_side == 'right':
-            other_angle = knee_angle_g
-        else:
-            other_angle = knee_angle_d
-        # Fenêtre de quelques points avant/après
-        w = window
-        before = np.mean(other_angle[max(my_idx-w,0): my_idx])
-        after = np.mean(other_angle[my_idx: my_idx+w])
-        slope = after - before
-
-        # On considère "alternate" si la jambe qui fait un kick a une dérivée opposée à celle de l'autre jambe
-        # On checke si, autour du pic, l'autre jambe a un mouvement opposé (ou une amplitude opposée)
-        # Ici : slope négatif -> l'autre jambe part en extension pendant que celle-ci est en flexion
-        if slope < 0:
-            labels[i] = 'alternate'
-
-    # Pour que les alternates soient bien marqués par paires (voire plus : séquences alternées !)
-    # On relit et groupe toutes les alternances proches
-    already_marked = set()
-    for i in range(n):
-        if labels[i] == 'alternate' and i not in already_marked:
-            # Cherche tous les alternates proches dans le temps (dans la même séquence d'alternance)
-            group = [i]
-            idx_i = kicks[i]['index']
-            side_i = kicks[i]['side']
-            for j in range(i+1, n):
-                if labels[j] == 'alternate' and kicks[j]['side'] != side_i:
-                    idx_j = kicks[j]['index']
-                    # Si moins de demi-cycle d'écart → même alternance
-                    if abs(idx_i - idx_j) < 0.5 * (kicks[i]['end']-kicks[i]['start']):
-                        group.append(j)
-            # Marque le groupe
-            for k in group:
-                already_marked.add(k)
-                labels[k] = 'alternate'
-
-    # 4. Les autres sont des singles
-    for i in range(n):
-        if labels[i] is None:
-            labels[i] = 'single'
-
-    # 5. Construction du résultat
     results = []
-    for i in range(n):
-        results.append({
-            'type': labels[i],
-            'side': kicks[i]['side'],
-            'index': kicks[i]['index'],
-            'start': kicks[i]['start'],
-            'end': kicks[i]['end'],
-        })
+
+    # Annotate right kicks
+    for kd in kicks_d:
+        # Find best matching left kick
+        match = None
+        min_tdiff = None
+        for kg in kicks_g:
+            # Overlap or close enough in time
+            overlap = (kd['start'] <= kg['end'] and kd['end'] >= kg['start']) or \
+                      (abs(kd['min'] - kg['min'])/fs < overlap_threshold_s)
+            if overlap:
+                tdiff = abs(kd['min'] - kg['min'])/fs
+                if min_tdiff is None or tdiff < min_tdiff:
+                    min_tdiff = tdiff
+                    match = kg
+
+        if match is not None:
+            # Simultaneous if peaks are close enough
+            if min_tdiff < simult_threshold_s:
+                results.append({'type': 'simultaneous', 'side': 'right', 'start': kd['start'], 'end': kd['end'], 'index': kd['min']})
+            else:
+                results.append({'type': 'alternate', 'side': 'right', 'start': kd['start'], 'end': kd['end'], 'index': kd['min']})
+        else:
+            results.append({'type': 'single', 'side': 'right', 'start': kd['start'], 'end': kd['end'], 'index': kd['min']})
+
+    # Annotate left kicks
+    for kg in kicks_g:
+        match = None
+        min_tdiff = None
+        for kd in kicks_d:
+            overlap = (kg['start'] <= kd['end'] and kg['end'] >= kd['start']) or \
+                      (abs(kg['min'] - kd['min'])/fs < overlap_threshold_s)
+            if overlap:
+                tdiff = abs(kg['min'] - kd['min'])/fs
+                if min_tdiff is None or tdiff < min_tdiff:
+                    min_tdiff = tdiff
+                    match = kd
+
+        if match is not None:
+            if min_tdiff < simult_threshold_s:
+                results.append({'type': 'simultaneous', 'side': 'left', 'start': kg['start'], 'end': kg['end'], 'index': kg['min']})
+            else:
+                results.append({'type': 'alternate', 'side': 'left', 'start': kg['start'], 'end': kg['end'], 'index': kg['min']})
+        else:
+            results.append({'type': 'single', 'side': 'left', 'start': kg['start'], 'end': kg['end'], 'index': kg['min']})
+
+    # Optionally, sort by time
+    results = sorted(results, key=lambda x: x['index'])
+
+    # Optional: plotting, not included here for brevity
+    # Color code for bars
+    bar_colors = {'single': 'gold', 'alternate': 'violet', 'simultaneous': 'deepskyblue'}
+    label_map = {'single': 'Single', 'alternate': 'Alternate', 'simultaneous': 'Simultaneous'}
+
+    t = np.arange(len(knee_angle_d)) / fs
+    plt.figure(figsize=(14, 8))
+
+    # Plot knee angles
+    plt.plot(t, knee_angle_d, label='Right Knee', color='tab:green', alpha=0.7)
+    plt.plot(t, knee_angle_g, label='Left Knee', color='tab:orange', alpha=0.7)
+
+    # Lignes verticales début/fin
+    jitter = 0.003
+    shown_labels = set()
+    for r in results:
+        if r['side'] == 'right':
+            x_start = r['start'] / fs - jitter
+            x_end = r['end'] / fs + jitter
+            plt.axvline(x_start, color='green', linestyle='-', linewidth=1.4, alpha=0.7,
+                        label='Right Start' if 'Right Start' not in shown_labels else "")
+            plt.axvline(x_end, color='red', linestyle='-', linewidth=1.4, alpha=0.7,
+                        label='Right End' if 'Right End' not in shown_labels else "")
+            shown_labels.update(['Right Start', 'Right End'])
+        else:
+            x_start = r['start'] / fs - jitter
+            x_end = r['end'] / fs + jitter
+            plt.axvline(x_start, color='green', linestyle='--', linewidth=1.4, alpha=0.7,
+                        label='Left Start' if 'Left Start' not in shown_labels else "")
+            plt.axvline(x_end, color='red', linestyle='--', linewidth=1.4, alpha=0.7,
+                        label='Left End' if 'Left End' not in shown_labels else "")
+            shown_labels.update(['Left Start', 'Left End'])
+
+    # Bands for type (top for right, bottom for left)
+    ylim = plt.ylim()
+    bar_height = (ylim[1] - ylim[0]) * 0.04
+    bar_y_top = ylim[1] + bar_height * 1.1
+    bar_y_bot = ylim[0] - bar_height * 2.1
+
+    for r in results:
+        color = bar_colors[r['type']]
+        x0 = r['start'] / fs
+        x1 = r['end'] / fs
+        if r['side'] == 'right':
+            plt.fill_betweenx([bar_y_top, bar_y_top + bar_height], x0, x1, color=color, alpha=0.95, linewidth=0)
+        else:
+            plt.fill_betweenx([bar_y_bot, bar_y_bot + bar_height], x0, x1, color=color, alpha=0.95, linewidth=0)
+
+    # Légende pour les bandes
+    import matplotlib.patches as mpatches
+    legend_patches = [
+        mpatches.Patch(color=bar_colors['single'], label='Single'),
+        mpatches.Patch(color=bar_colors['alternate'], label='Alternate'),
+        mpatches.Patch(color=bar_colors['simultaneous'], label='Simultaneous')
+    ]
+    handles, labels_ = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels_, handles))
+    plt.legend(legend_patches + list(by_label.values()),
+               [p.get_label() for p in legend_patches] + list(by_label.keys()), loc="upper right")
+
+    plt.ylim(bar_y_bot - bar_height, bar_y_top + bar_height * 2)
+    plt.xlabel("Time (s)")
+    plt.ylabel("Knee Angle (deg)")
+    plt.title("Knee angles with labeled kicks and color code bars (top: Right, bottom: Left)")
+    plt.tight_layout()
+    plt.show()
     return results
 
 def get_mean_and_std(kicking_cycle_data):
@@ -436,8 +456,8 @@ def get_mean_and_std(kicking_cycle_data):
 
 def synchro_hip_knee(time_vector, PEL, KNE, SHO, ANK, plot=False):
 
-    hip_angle = angle_from_vector(PEL, SHO, KNE)
-    knee_angle = angle_from_vector(KNE, PEL, ANK)
+    hip_angle = 180 - angle_from_vector(PEL, SHO, KNE)
+    knee_angle = 180 - angle_from_vector(KNE, PEL, ANK)
 
     if plot:
         plot_time_series(time_vector, knee_angle=knee_angle, hip_angle=hip_angle, title="Angle synchro", ylabel="Angle (°)")
