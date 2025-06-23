@@ -203,7 +203,7 @@ def ankle_high(ankle_marker, pelvis_marker, time_vector, leg_length, high_thresh
     thigh_proportion = 55
     thigh_length = leg_length * thigh_proportion/100
 
-    range_extension = np.sqrt(thigh_length**2 + (leg_length-thigh_length)**2 - 2 * thigh_length * (leg_length-thigh_length) * np.cos(np.radians(180-max_flexion)))
+    range_extension = (np.sqrt(thigh_length**2 + (leg_length-thigh_length)**2 - 2 * thigh_length * (leg_length-thigh_length) * np.cos(np.radians(180-max_flexion))))*0.9
 
     # Compute the Euclidean distance between pelvis and ankle at each time frame
     distance_pelv_ank = np.linalg.norm(pelvis_marker - ankle_marker, axis=1)

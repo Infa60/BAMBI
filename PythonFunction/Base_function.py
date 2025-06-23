@@ -267,20 +267,6 @@ def butter_lowpass_filter(data, cutoff, fs, order=2):
     filtered_data = filtfilt(b, a, data, axis=0)  # Zero-phase filtering
     return filtered_data
 
-def get_body_length(RPEL, LPEL, RSHO, LSHO):
-    """
-    Compute the mean body segment length (pelvis to shoulder) for left and right sides.
-    Raises an error if there is a large discrepancy (marker issue).
-    """
-    body_right = np.linalg.norm(RPEL - RSHO, axis=1)
-    body_left = np.linalg.norm(LPEL - LSHO, axis=1)
-    mean_right = np.mean(body_right)
-    mean_left = np.mean(body_left)
-    if abs(mean_right - mean_left) > 50:
-        raise ValueError("Verify marker placement between right and left side of the body")
-    else:
-        return (mean_left+mean_right)/2
-
 
 # === STEP 1: Compute angular threshold from cohort-wide shoulder widths ===
 

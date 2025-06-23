@@ -41,6 +41,8 @@ bambiID_list = results_struct.dtype.names  # Extract all Bambi IDs
 for i, bambiID in enumerate(results_struct.dtype.names):
     if results_struct[bambiID]['marker_category'][0][0][0] != "full":
         continue
+    if bambiID == "Bambi040":
+        continue
 
     print(f"{bambiID} is running")
 
@@ -94,8 +96,6 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     cycle_durations = np.diff(time_duration)
     freq = int(1 / cycle_durations[0])
 
-    body_length = get_body_length(RPEL, LPEL, RSHO, LSHO)
-
     # Calculate total distance traveled by the ankle
     distances = np.linalg.norm(np.diff(pos_ankle, axis=0), axis=1)
     row["distance_travel_ankle"] = np.sum(distances)
@@ -126,6 +126,11 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     ## Hand-hand contact
     hand_hand_contact = distance_hand_hand(LWRA, RWRA, threshold=50, time_vector=time_duration, plot=False)
 
+    row["number_of_hand_hand_contact"] = hand_hand_contact["number_of_event"]
+    row["total_time_in_hand_hand_contact"] = hand_hand_contact["time_in_contact"]
+    row["mean_time_hand_hand_contact"] = np.mean(hand_hand_contact["durations_per_event"])
+    row["std_time_hand_hand_contact"] = np.std(hand_hand_contact["durations_per_event"])
+
     ## Kicking
     kicking_cycle_outcomes_left, distance_kicking_left, kick_intervals_left = kicking(LPEL,LANK, time_duration, leg_length, LKNE, LPEL, LANK, freq, plot=False)
     mean_std_kicking_values_left = get_mean_and_std(kicking_cycle_outcomes_left)
@@ -136,12 +141,9 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     knee_angle_right, hip_angle_right = synchro_hip_knee(time_duration, RPEL, RKNE, RSHO, RANK, plot=False)
     knee_angle_left, hip_angle_left = synchro_hip_knee(time_duration, LPEL, LKNE, LSHO, LANK, plot=False)
 
-    # knee_hip_correlation(knee_angle_right, hip_angle_right, kick_intervals_right)
+    mean_corr_right, std_corr_right, mean_lags_right, std_lags_right = knee_hip_correlation(knee_angle_right, hip_angle_right, kick_intervals_right)
+    mean_corr_left, std_corr_left, mean_lags_left, std_lags_left = knee_hip_correlation(knee_angle_left, hip_angle_left, kick_intervals_left)
 
-    #phase_antiphase(knee_angle_right, hip_angle_right, time_duration)
-    #phase_antiphase(knee_angle_left, hip_angle_left, time_duration)
-
-    #phase_antiphase(knee_angle_right, knee_angle_left, time_duration)
 
     classification_results = classify_kicks(kick_intervals_right, kick_intervals_left, knee_angle_right, knee_angle_left, fs=freq)
 
@@ -149,29 +151,85 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     for k, v in type_counts.items():
         print(f"{k}: {v}")
 
-    plot_kick_classification_with_bars(knee_angle_right, knee_angle_left, classification_results, freq)
+    # plot_kick_classification_with_bars(knee_angle_right, knee_angle_left, classification_results, freq)
 
-    # Liste de sauvegarde
+    # Save List
     labeled_kicks = []
+    # for (start, end) in kick_intervals_right:
+        # label_and_save_kick(knee_angle_right, knee_angle_left, start, end, 'right', labeled_kicks)
+    # plot_kick_classification_with_bars(knee_angle_right, knee_angle_left, labeled_kicks, freq)
 
-    # Exemple : parcourir tous les kicks droits
-    for (start, end) in kick_intervals_right:
-        label_and_save_kick(knee_angle_right, knee_angle_left, start, end, 'right', labeled_kicks)
+    row["mean_flexion_amplitude_right"] = mean_std_kicking_values_right["mean"]["flexion_amplitude"]
+    row["std_flexion_amplitude_right"] = mean_std_kicking_values_right["std"]["flexion_amplitude"]
+    row["mean_extension_amplitude_right"] = mean_std_kicking_values_right["mean"]["extension_amplitude"]
+    row["std_extension_amplitude_right"] = mean_std_kicking_values_right["std"]["extension_amplitude"]
+    row["mean_duration_right"] = mean_std_kicking_values_right["mean"]["duration"]
+    row["std_duration_right"] = mean_std_kicking_values_right["std"]["duration"]
+    row["mean_steepness_right"] = mean_std_kicking_values_right["mean"]["steepness"]
+    row["std_steepness_right"] = mean_std_kicking_values_right["std"]["steepness"]
+    row["mean_flexion_speed_right"] = mean_std_kicking_values_right["mean"]["flexion_speed"]
+    row["std_flexion_speed_right"] = mean_std_kicking_values_right["std"]["flexion_speed"]
+    row["mean_extension_speed_right"] = mean_std_kicking_values_right["mean"]["extension_speed"]
+    row["std_extension_speed_right"] = mean_std_kicking_values_right["std"]["extension_speed"]
 
-    plot_kick_classification_with_bars(knee_angle_right, knee_angle_left, labeled_kicks, freq)
+    row["mean_flexion_amplitude_left"] = mean_std_kicking_values_left["mean"]["flexion_amplitude"]
+    row["std_flexion_amplitude_left"] = mean_std_kicking_values_left["std"]["flexion_amplitude"]
+    row["mean_extension_amplitude_left"] = mean_std_kicking_values_left["mean"]["extension_amplitude"]
+    row["std_extension_amplitude_left"] = mean_std_kicking_values_left["std"]["extension_amplitude"]
+    row["mean_duration_left"] = mean_std_kicking_values_left["mean"]["duration"]
+    row["std_duration_left"] = mean_std_kicking_values_left["std"]["duration"]
+    row["mean_steepness_left"] = mean_std_kicking_values_left["mean"]["steepness"]
+    row["std_steepness_left"] = mean_std_kicking_values_left["std"]["steepness"]
+    row["mean_flexion_speed_left"] = mean_std_kicking_values_left["mean"]["flexion_speed"]
+    row["std_flexion_speed_left"] = mean_std_kicking_values_left["std"]["flexion_speed"]
+    row["mean_extension_speed_left"] = mean_std_kicking_values_left["mean"]["extension_speed"]
+    row["std_extension_speed_left"] = mean_std_kicking_values_left["std"]["extension_speed"]
 
+    row["mean_corr_right"] = mean_corr_right
+    row["std_corr_right"] = std_corr_right
+    row["mean_lags_right"] = mean_lags_right
+    row["std_lags_right"] = std_lags_right
+
+    row["mean_corr_left"] = mean_corr_left
+    row["std_corr_left"] = std_corr_left
+    row["mean_lags_left"] = mean_lags_left
+    row["std_lags_left"] = std_lags_left
 
     ## Foot-foot contact
     plantar_plantar_contact_outcomes, foot_foot_contact_outcomes = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=150, threshold_knee=300, time_vector=time_duration, plot=False)
+
+    row["number_of_foot_foot_contact"] = foot_foot_contact_outcomes["number_of_event"]
+    row["total_time_in_foot_foot_contact"] = foot_foot_contact_outcomes["time_in_contact"]
+    row["mean_time_foot_foot_contact"] = np.mean(foot_foot_contact_outcomes["durations_per_event"])
+    row["std_time_foot_foot_contact"] = np.std(foot_foot_contact_outcomes["durations_per_event"])
 
     ## Leg lifting
     right_lift_with_leg_extend, distance_pelv_ank_right = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=80, max_flexion=30, plot=False)
     left_lift_with_leg_extend, distance_pelv_ank_left = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=80, max_flexion=30, plot=False)
 
-    # phase_antiphase(distance_pelv_ank_right, distance_pelv_ank_left, time_duration)
+    row["number_of_right_foot_lift"] = right_lift_with_leg_extend["number_of_event"]
+    row["total_time_in_right_foot_lift"] = right_lift_with_leg_extend["time_in_contact"]
+    row["mean_time_right_foot_lift"] = np.mean(right_lift_with_leg_extend["durations_per_event"])
+    row["std_time_right_foot_lift"] = np.std(right_lift_with_leg_extend["durations_per_event"])
+
+    row["number_of_left_foot_lift"] = left_lift_with_leg_extend["number_of_event"]
+    row["total_time_in_left_foot_lift"] = left_lift_with_leg_extend["time_in_contact"]
+    row["mean_time_left_foot_lift"] = np.mean(left_lift_with_leg_extend["durations_per_event"])
+    row["std_time_left_foot_lift"] = np.std(left_lift_with_leg_extend["durations_per_event"])
 
     ## Hand-foot contact
     hand_foot_contact_outcomes = distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold=100, time_vector=time_duration, plot=False)
+
+    row["number_of_foot_hand_contact_ipsilateral"] = hand_foot_contact_outcomes["ipsilateral_contact_outcomes"]["number_of_event"]
+    row["total_time_in_foot_hand_contact_ipsilateral"] = hand_foot_contact_outcomes["ipsilateral_contact_outcomes"]["time_in_contact"]
+    row["mean_time_foot_hand_contact_ipsilateral"] = np.mean(hand_foot_contact_outcomes["ipsilateral_contact_outcomes"]["durations_per_event"])
+    row["std_time_foot_hand_contact_ipsilateral"] = np.std(hand_foot_contact_outcomes["ipsilateral_contact_outcomes"]["durations_per_event"])
+
+    row["number_of_foot_hand_contact_contralateral"] = hand_foot_contact_outcomes["contralateral_contact_outcomes"]["number_of_event"]
+    row["total_time_in_foot_hand_contact_contralateral"] = hand_foot_contact_outcomes["contralateral_contact_outcomes"]["time_in_contact"]
+    row["mean_time_foot_hand_contact_contralateral"] = np.mean(hand_foot_contact_outcomes["contralateral_contact_outcomes"]["durations_per_event"])
+    row["std_time_foot_hand_contact_contralateral"] = np.std(hand_foot_contact_outcomes["contralateral_contact_outcomes"]["durations_per_event"])
+
 
     ## Wrist ellipsoid
     stats_right_wrist_ellipsoid = plot_ellipsoid_and_points_stickman(

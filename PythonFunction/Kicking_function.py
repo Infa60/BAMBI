@@ -235,7 +235,7 @@ def kicking(
     return kicking_cycle_data, distance_pelv_ank, kick_intervals
 
 
-def knee_hip_correlation(knee_angle, hip_angle, kick_intervals):
+def knee_hip_correlation(knee_angle, hip_angle, kick_intervals, plot=False):
     """
     A lag < 0 means that the hip precedes the knee (the hip “moves” before the knee in the cycle).
     A lag > 0 means that the knee precedes the hip (the knee “moves” before the hip).
@@ -276,22 +276,26 @@ def knee_hip_correlation(knee_angle, hip_angle, kick_intervals):
     mean_lags = np.nanmean(lags)
     std_lags = np.nanstd(lags)
 
-    fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+    if plot:
 
-    # Histogram for correlations
-    axs[0].hist(correlations, bins=20)
-    axs[0].set_xlabel("Knee-Hip Correlation")
-    axs[0].set_ylabel("Number of kicks")
-    axs[0].set_title("Distribution of correlations per cycle")
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5))
 
-    # Histogram for lags
-    axs[1].hist(lags, bins=20)
-    axs[1].set_xlabel("Lag (in samples)")
-    axs[1].set_ylabel("Number of kicks")
-    axs[1].set_title("Distribution of optimal lags")
+        # Histogram for correlations
+        axs[0].hist(correlations, bins=20)
+        axs[0].set_xlabel("Knee-Hip Correlation")
+        axs[0].set_ylabel("Number of kicks")
+        axs[0].set_title("Distribution of correlations per cycle")
 
-    plt.tight_layout()
-    plt.show()
+        # Histogram for lags
+        axs[1].hist(lags, bins=20)
+        axs[1].set_xlabel("Lag (in samples)")
+        axs[1].set_ylabel("Number of kicks")
+        axs[1].set_title("Distribution of optimal lags")
+
+        plt.tight_layout()
+        plt.show()
+
+    return mean_corr, std_corr, mean_lags, std_lags
 
 
 def classify_kicks(
