@@ -11,7 +11,7 @@ from PythonFunction.Base_function import resample_size, get_threshold_intervals,
 matplotlib.use("TkAgg")
 
 def plot_combined_pdf(
-    hip_add_all, plot_name, folder_save_path, bins=50, color="lightcoral"
+    hip_add_all, plot_name, folder_save_path, bins=50, color="lightcoral", plot_save=False
 ):
     """
     Plot a combined histogram and kernel density estimate (PDF) of hip angles
@@ -52,7 +52,8 @@ def plot_combined_pdf(
     # Enregistre la figure
     filename_to_save = f"{plot_name}_all_bambies.png"
     save_path = os.path.join(folder_save_path, filename_to_save)
-    plt.savefig(save_path, dpi=300)
+    if plot_save:
+        plt.savefig(save_path, dpi=300)
     plt.close()
 
 
@@ -67,6 +68,7 @@ def plot_mean_pdf_stat(
     show_std=True,
     all_line=True,
     target_length=7200,
+    plot_save=False
 ):
     """
         This function computes and plots the average Kernel Density Estimate (KDE)
@@ -194,7 +196,8 @@ def plot_mean_pdf_stat(
     # Save figure
     filename_to_save = f"{plot_name}_mean_across_bambies.png"
     save_path = os.path.join(folder_save_path, filename_to_save)
-    plt.savefig(save_path, dpi=300)
+    if plot_save:
+        plt.savefig(save_path, dpi=300)
     plt.close()
 
 

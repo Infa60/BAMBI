@@ -135,6 +135,7 @@ def plot_mean_pdf_contact(
         bambiID_list,
         plot_name,
         folder_save_path,
+        field="durations_per_event",
         grid_min=0.0,
         grid_max=6.0,
         grid_points=500,
@@ -143,110 +144,147 @@ def plot_mean_pdf_contact(
         bandwidth='scott',
 ):
     """
-    Trace la PDF moyenne des durées de contact pied-pied sur un ensemble de bébés
-    et enregistre des statistiques (skewness, kurtosis) dans un CSV.
-    """
+    Plot the average PDF of a given contact metric (durations or amplitudes)
+    across subjects and save skewness/kurtosis statistics to CSV.
 
-    # Grille d'évaluation
+    Parameters
+    ----------
+    outcomes_total : list[dict]
+        Each dict must contain:
+            'durations_per_event': list of floats
+            optionally 'amplitude_per_event': list of floats if field="amplitude_per_event"
+    bambiID_list : list[str]
+        Subject identifiers, in the same order as outcomes_total.
+    plot_name : str
+        Base filename for the plot and CSV.
+    folder_save_path : str
+        Directory where outputs will be saved.
+    field : str, default "durations_per_event"
+        Which metric to plot: "durations_per_event" or "amplitude_per_event".
+    grid_min, grid_max : float
+        Range of values for KDE evaluation.
+    grid_points : int
+        Number of points in the KDE grid.
+    show_std : bool
+        If True, shade ±1 standard deviation around the mean PDF.
+    all_line : bool
+        If True, overlay individual subject PDFs.
+    bandwidth : str or float
+        Bandwidth method or value for gaussian_kde.
+
+    Raises
+    ------
+    ValueError
+        If `field` is not one of the two allowed metrics, or if no subject has data.
+    """
+    if field not in ("durations_per_event", "amplitude_per_event"):
+        raise ValueError(f"field must be 'durations_per_event' or 'amplitude_per_event'")
+
+    os.makedirs(folder_save_path, exist_ok=True)
+
+    # Define labels based on the chosen metric
+    if field == "durations_per_event":
+        metric_name = "Contact Durations"
+        x_label = "Duration per event (s)"
+        summary_label = "T_contact"
+    else:
+        metric_name = "Contact Amplitudes"
+        x_label = "Amplitude per event"
+        summary_label = "Amplitude"
+
+    # Prepare evaluation grid
     grid = np.linspace(grid_min, grid_max, grid_points)
 
     kdes = []
     stats_data = []
     n_events_list = []
-    time_contact_list = []
+    summary_values = []
 
+    # Loop over each subject outcome
     for idx, outcome in enumerate(outcomes_total):
-        durations = np.asarray(outcome["durations_per_event"], dtype=float)
+        # extract the list of values for this metric
+        vals = np.asarray(outcome.get(field, []), dtype=float)
+        vals = vals[np.isfinite(vals)]
 
-        # ---------- cas sans événement ----------
-        if durations.size == 0:
-            # 1) on enregistre quand même des stats "vides" pour le CSV
+        # handle subjects without any events
+        if vals.size == 0:
             stats_data.append([bambiID_list[idx], np.nan, np.nan])
-
-            # 2) on comptabilise le nombre d’événements (=0) et le temps de contact (=0)
             n_events_list.append(0)
-            time_contact_list.append(0.0)
-
-            # 3) pas de KDE → on passe au suivant
+            summary_values.append(0.0)
             continue
 
-        kde = gaussian_kde(durations, bw_method=bandwidth)
-        kde_values = kde(grid)
-        kdes.append(kde_values)
+        # estimate KDE on the fixed grid
+        kde = gaussian_kde(vals, bw_method=bandwidth)
+        kde_vals = kde(grid)
+        kdes.append(kde_vals)
 
-        # Skew & kurtosis sur la PDF estimée
-        stats_data.append([
-            bambiID_list[idx],
-            skew(kde_values),
-            kurtosis(kde_values)
-        ])
+        # record skewness and kurtosis of this subject's PDF
+        stats_data.append([bambiID_list[idx], skew(kde_vals), kurtosis(kde_vals)])
 
-        # Statistiques descriptives additionnelles
-        n_events_list.append(outcome["number_of_event"])
-        time_contact_list.append(outcome["time_in_contact"])
+        # count events and record summary per subject
+        n_events_list.append(vals.size)
+        if field == "durations_per_event":
+            summary_values.append(np.sum(vals))      # total contact time
+        else:
+            summary_values.append(np.mean(vals))     # average amplitude
 
-    # ---------- PDF moyenne ----------
+    # ensure we have at least one valid KDE
+    if not kdes:
+        raise ValueError(f"No data available for field '{field}'; nothing to plot.")
+
+    # compute mean and std of PDFs across subjects
     kdes = np.array(kdes)
-    if len(kdes) == 0:
-        raise ValueError("Aucun sujet n’a de foot-foot contact ; rien à tracer.")
-
     mean_pdf = kdes.mean(axis=0)
     std_pdf = kdes.std(axis=0)
-    lower_bound = np.clip(mean_pdf - std_pdf, 0, None)
-    upper_bound = mean_pdf + std_pdf
+    lower = np.clip(mean_pdf - std_pdf, 0, None)
+    upper = mean_pdf + std_pdf
 
-    # Skew & kurtosis de la PDF moyenne
+    # append overall-skew/kurtosis
     stats_data.append(["Total Mean", skew(mean_pdf), kurtosis(mean_pdf)])
-
-    stats_df = pd.DataFrame(stats_data,
-                            columns=["Subject", "Skewness", "Kurtosis"])
-
-    # ---------- Sauvegarde CSV ----------
-    csv_path = os.path.join(folder_save_path,
-                            f"{plot_name}_stats_on_KDE_PDF.csv")
+    stats_df = pd.DataFrame(stats_data, columns=["Subject", "Skewness", "Kurtosis"])
+    csv_path = os.path.join(folder_save_path, f"{plot_name}_stats_on_KDE_PDF.csv")
     stats_df.to_csv(csv_path, index=False)
 
-    # ---------- Stats globales "brutes" ----------
-    mean_n_events = np.mean(n_events_list)
-    std_n_events = np.std(n_events_list)
-    mean_time_cont = np.mean(time_contact_list)
-    std_time_cont = np.std(time_contact_list)
+    # compute global summary metrics
+    mean_n = np.mean(n_events_list)
+    std_n = np.std(n_events_list)
+    mean_summary = np.mean(summary_values)
+    std_summary = np.std(summary_values)
 
-    # ---------- Plot ----------
+    # ---- Plotting ----
     plt.figure(figsize=(8, 5))
-    plt.plot(grid, mean_pdf, color="black", linewidth=2, label="Mean PDF")
+    plt.plot(grid, mean_pdf, color="black", lw=2, label="Mean PDF")
 
     if all_line:
-        for kde in kdes:
-            plt.plot(grid, kde, color="gray", alpha=0.25)
+        for subject_pdf in kdes:
+            plt.plot(grid, subject_pdf, color="gray", alpha=0.25)
 
     if show_std:
-        plt.fill_between(grid, lower_bound, upper_bound,
-                         color="black", alpha=0.3, label="±1 SD")
+        plt.fill_between(grid, lower, upper, color="black", alpha=0.3, label="±1 SD")
 
-    # Boîte récapitulative
-    text_box = (
-        f"Events : {mean_n_events:.1f} ± {std_n_events:.1f}\n"
-        f"T_contact : {mean_time_cont:.2f} ± {std_time_cont:.2f} s"
+    # text box with event count and summary metric
+    text = (
+        f"Events: {mean_n:.1f} ± {std_n:.1f}\n"
+        f"{summary_label}: {mean_summary:.2f} ± {std_summary:.2f}"
+        + (" s" if field == "durations_per_event" else "")
     )
     plt.text(
-        0.02, 0.965, text_box,
+        0.02, 0.965, text,
         transform=plt.gca().transAxes,
-        va="top", ha="center", fontsize=11,
-        bbox=dict(facecolor="white",
-                  edgecolor="lightgrey",
-                  boxstyle="round,pad=0.4",
-                  alpha=0.8)
+        va="top", ha="left", fontsize=11,
+        bbox=dict(facecolor="white", edgecolor="lightgrey", boxstyle="round,pad=0.4", alpha=0.8)
     )
 
-    plt.title(f"Mean PDF of Foot-Foot Contact Durations – {plot_name}")
-    plt.xlabel("Duration per event (s)")
+    plt.title(f"Mean PDF of {metric_name} – {plot_name}")
+    plt.xlabel(x_label)
     plt.ylabel("Probability Density")
     plt.ylim(bottom=0)
     plt.legend()
     plt.tight_layout()
 
-    fig_path = os.path.join(folder_save_path,
-                            f"{plot_name}_mean_pdf_durations.png")
+    fig_path = os.path.join(folder_save_path, f"{plot_name}_mean_pdf_{field}.png")
     plt.savefig(fig_path, dpi=300)
     plt.close()
+
+    print(f"Figure saved → {fig_path}")
+    print(f"CSV saved    → {csv_path}")

@@ -29,6 +29,14 @@ data = scipy.io.loadmat(result_file)
 # Access the structured results
 results_struct = data["results"][0, 0]
 
+foot_foot_threshold = 150
+hand_hand_threshold = 50
+ankle_high_treshold = 50
+hand_mouth_threshold = 100
+knee_knee_threshold = 300
+hand_foot_threshold = 100
+
+
 # Lists to collect data for global analysis
 data_rows = []
 hip_add_all = []
@@ -126,7 +134,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
 
     ## Hand to mouth contact
-    R_hand_mouth_contact, L_hand_mouth_contact = distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold=100, time_vector=time_duration, plot=False)
+    R_hand_mouth_contact, L_hand_mouth_contact = distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold=hand_mouth_threshold, time_vector=time_duration, plot=False)
     add_contact_metrics(
         dest=row,
         prefix="R_hand_mouth_contact",
@@ -144,7 +152,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
 
     ## Hand-hand contact
-    hand_hand_contact = distance_hand_hand(LWRA, RWRA, threshold=50, time_vector=time_duration, plot=False)
+    hand_hand_contact = distance_hand_hand(LWRA, RWRA, threshold=hand_hand_threshold, time_vector=time_duration, plot=False)
     add_contact_metrics(
         dest=row,
         prefix="hand_hand_contact",
@@ -219,7 +227,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     row["std_lags_left"] = std_lags_left
 
     ## Foot-foot contact
-    plantar_plantar_contact_outcomes, foot_foot_contact_outcomes = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=150, threshold_knee=300, time_vector=time_duration, plot=False)
+    plantar_plantar_contact_outcomes, foot_foot_contact_outcomes = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=foot_foot_threshold, threshold_knee=knee_knee_threshold, time_vector=time_duration, plot=False)
     add_contact_metrics(
         dest=row,
         prefix="foot_foot_contact",
@@ -229,8 +237,8 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     foot_outcomes_total.append(foot_foot_contact_outcomes)
 
     ## Leg lifting
-    right_lift_with_leg_extend, distance_pelv_ank_right = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=50, max_flexion=45, plot=False)
-    left_lift_with_leg_extend, distance_pelv_ank_left = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=50, max_flexion=45, plot=False)
+    right_lift_with_leg_extend, distance_pelv_ank_right = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=ankle_high_treshold, max_flexion=45, plot=False)
+    left_lift_with_leg_extend, distance_pelv_ank_left = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=ankle_high_treshold, max_flexion=45, plot=False)
     add_contact_metrics(
         dest=row,
         prefix="right_lift_with_leg_extend",
@@ -248,7 +256,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
 
     ## Hand-foot contact
-    hand_foot_contact_outcomes = distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold=100, time_vector=time_duration, plot=False)
+    hand_foot_contact_outcomes = distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold=hand_foot_threshold, time_vector=time_duration, plot=False)
     add_contact_metrics(
         dest=row,
         prefix="foot_hand_contact_contralateral",
@@ -290,9 +298,43 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     # Add the row to the list
     data_rows.append(row)
 
-plot_mean_pdf_contact(foot_outcomes_total, bambiID_list,'Foot_foot',path)
-plot_mean_pdf_contact(hand_outcomes_total, bambiID_list,'Hand_hand',path)
+## Foot foot plot
+plot_mean_pdf_contact (foot_outcomes_total, bambiID_list, 'Foot_foot', path, field="durations_per_event",
+        grid_min=0.0, grid_max=6.0, grid_points=500)
+plot_mean_pdf_contact (foot_outcomes_total, bambiID_list, 'Foot_foot', path, field="amplitude_per_event",
+        grid_min=0.0, grid_max=foot_foot_threshold, grid_points=500)
 
+## Hand hand plot
+plot_mean_pdf_contact (hand_outcomes_total, bambiID_list, 'Hand_hand', path, field="durations_per_event",
+        grid_min=0.0, grid_max=6.0, grid_points=500)
+plot_mean_pdf_contact (hand_outcomes_total, bambiID_list, 'Hand_hand', path, field="amplitude_per_event",
+        grid_min=0.0, grid_max=hand_hand_threshold, grid_points=500)
+
+## Hand mouth plot
+plot_mean_pdf_contact (mouth_handR_outcomes_total, bambiID_list, 'Mouth_hand_R', path, field="durations_per_event",
+        grid_min=0.0, grid_max=6.0, grid_points=500)
+plot_mean_pdf_contact (mouth_handR_outcomes_total, bambiID_list, 'Mouth_hand_R', path, field="amplitude_per_event",
+        grid_min=0.0, grid_max=hand_mouth_threshold, grid_points=500)
+plot_mean_pdf_contact (mouth_handL_outcomes_total, bambiID_list, 'Mouth_hand_L', path, field="durations_per_event",
+        grid_min=0.0, grid_max=6.0, grid_points=500)
+plot_mean_pdf_contact (mouth_handL_outcomes_total, bambiID_list, 'Mouth_hand_L', path, field="amplitude_per_event",
+        grid_min=0.0, grid_max=hand_mouth_threshold, grid_points=500)
+
+## Leg lift plot
+plot_mean_pdf_contact (legR_lift_outcomes_total, bambiID_list, 'Leg_lift_R', path, field="durations_per_event",
+        grid_min=0.0, grid_max=6.0, grid_points=500)
+plot_mean_pdf_contact (legR_lift_outcomes_total, bambiID_list, 'Leg_lift_R', path, field="amplitude_per_event",
+        grid_min=0.0, grid_max=ankle_high_treshold, grid_points=500)
+plot_mean_pdf_contact (legL_lift_outcomes_total, bambiID_list, 'Leg_lift_L', path, field="durations_per_event",
+        grid_min=0.0, grid_max=6.0, grid_points=500)
+plot_mean_pdf_contact (legL_lift_outcomes_total, bambiID_list, 'Leg_lift_L', path, field="amplitude_per_event",
+        grid_min=0.0, grid_max=ankle_high_treshold, grid_points=500)
+
+## Hand foot plot
+plot_mean_pdf_contact (hand_foot_contra_outcomes_total, bambiID_list, 'Hand_foot_contra', path, field="durations_per_event",
+        grid_min=0.0, grid_max=6.0, grid_points=500)
+plot_mean_pdf_contact (hand_foot_ipsi_outcomes_total, bambiID_list, 'Hand_foot_ipsi', path, field="durations_per_event",
+        grid_min=0.0, grid_max=6.0, grid_points=500)
 
 # Convert all collected data into a DataFrame
 df = pd.DataFrame(data_rows)
@@ -302,7 +344,7 @@ df.to_csv(f"{path}/Final_results.csv", index=False)
 print("Excel file successfully created!")
 
 # Plot PDFs and mean statistics for hip adduction-abduction
-plot_combined_pdf(hip_add_all, "Adduction-Abduction", folder_save_path=path)
+plot_combined_pdf(hip_add_all, "Adduction-Abduction", folder_save_path=path, plot_save=False)
 plot_mean_pdf_stat(
     hip_add_all,
     bambiID_list,
@@ -311,6 +353,7 @@ plot_mean_pdf_stat(
     grid_min=-70,
     grid_max=45,
     grid_points=500,
+    plot_save=False
 )
 
 # Plot PDFs and mean statistics for hip flexion-extension
