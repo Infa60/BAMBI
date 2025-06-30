@@ -36,6 +36,14 @@ hip_flex_all = []
 pdf_list = []
 x_list = []
 foot_outcomes_total = []
+hand_outcomes_total = []
+hand_foot_contra_outcomes_total = []
+hand_foot_ipsi_outcomes_total = []
+mouth_handR_outcomes_total = []
+mouth_handL_outcomes_total = []
+legR_lift_outcomes_total = []
+legL_lift_outcomes_total = []
+
 bambiID_list = results_struct.dtype.names  # Extract all Bambi IDs
 
 # Iterate through each Bambi ID
@@ -116,8 +124,6 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     row["volume_90"] = stats_ankle_ellipsoid["volume_90"]
     row["skew_velocity"] = skew(results_struct[bambiID]["velocity_ankle"][0, 0]).item()
 
-    # Add the row to the list
-    data_rows.append(row)
 
     ## Hand to mouth contact
     R_hand_mouth_contact, L_hand_mouth_contact = distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold=100, time_vector=time_duration, plot=False)
@@ -133,6 +139,9 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         durations_per_event=L_hand_mouth_contact["durations_per_event"],
         amplitude_per_event=L_hand_mouth_contact["amplitude_per_event"]
     )
+    mouth_handR_outcomes_total.append(R_hand_mouth_contact)
+    mouth_handL_outcomes_total.append(L_hand_mouth_contact)
+
 
     ## Hand-hand contact
     hand_hand_contact = distance_hand_hand(LWRA, RWRA, threshold=50, time_vector=time_duration, plot=False)
@@ -142,6 +151,8 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         durations_per_event=hand_hand_contact["durations_per_event"],
         amplitude_per_event=hand_hand_contact["amplitude_per_event"]
     )
+    hand_outcomes_total.append(hand_hand_contact)
+
 
     ## Kicking
     kicking_cycle_outcomes_left, distance_kicking_left, kick_intervals_left = kicking(LPEL,LANK, time_duration, leg_length, LKNE, LPEL, LANK, freq, plot=False)
@@ -209,14 +220,13 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
     ## Foot-foot contact
     plantar_plantar_contact_outcomes, foot_foot_contact_outcomes = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=150, threshold_knee=300, time_vector=time_duration, plot=False)
-    foot_outcomes_total.append(foot_foot_contact_outcomes)
-
     add_contact_metrics(
         dest=row,
         prefix="foot_foot_contact",
         durations_per_event=foot_foot_contact_outcomes["durations_per_event"],
         amplitude_per_event=foot_foot_contact_outcomes["amplitude_per_event"]
     )
+    foot_outcomes_total.append(foot_foot_contact_outcomes)
 
     ## Leg lifting
     right_lift_with_leg_extend, distance_pelv_ank_right = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=50, max_flexion=45, plot=False)
@@ -233,6 +243,9 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         durations_per_event=left_lift_with_leg_extend["durations_per_event"],
         amplitude_per_event=left_lift_with_leg_extend["amplitude_per_event"]
     )
+    legR_lift_outcomes_total.append(right_lift_with_leg_extend)
+    legL_lift_outcomes_total.append(left_lift_with_leg_extend)
+
 
     ## Hand-foot contact
     hand_foot_contact_outcomes = distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold=100, time_vector=time_duration, plot=False)
@@ -246,6 +259,9 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         prefix="foot_hand_contact_ipsilateral",
         durations_per_event=hand_foot_contact_outcomes["ipsilateral_contact_outcomes"]["durations_per_event"],
     )
+    hand_foot_contra_outcomes_total.append(hand_foot_contact_outcomes["contralateral_contact_outcomes"])
+    hand_foot_ipsi_outcomes_total.append(hand_foot_contact_outcomes["contralateral_contact_outcomes"])
+
 
     ## Wrist ellipsoid
     stats_right_wrist_ellipsoid = plot_ellipsoid_and_points_stickman(
@@ -271,8 +287,11 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     ## Body symmetry
     body_symmetry(LPEL, RPEL, LSHO, RSHO,40, time_vector=time_duration, plot=False)
 
+    # Add the row to the list
+    data_rows.append(row)
 
 plot_mean_pdf_contact(foot_outcomes_total, bambiID_list,'Foot_foot',path)
+plot_mean_pdf_contact(hand_outcomes_total, bambiID_list,'Hand_hand',path)
 
 
 # Convert all collected data into a DataFrame
