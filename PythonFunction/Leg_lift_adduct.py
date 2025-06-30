@@ -203,20 +203,22 @@ def ankle_high(ankle_marker, pelvis_marker, time_vector, leg_length, high_thresh
     thigh_proportion = 55
     thigh_length = leg_length * thigh_proportion/100
 
-    range_extension = (np.sqrt(thigh_length**2 + (leg_length-thigh_length)**2 - 2 * thigh_length * (leg_length-thigh_length) * np.cos(np.radians(180-max_flexion))))*0.9
+    ankle_high_from_ground = ankle_marker[:, 2]
+
+    range_extension = (np.sqrt(thigh_length**2 + (leg_length-thigh_length)**2 - 2 * thigh_length * (leg_length-thigh_length) * np.cos(np.radians(180-max_flexion))))  # add *0.9
 
     # Compute the Euclidean distance between pelvis and ankle at each time frame
     distance_pelv_ank = np.linalg.norm(pelvis_marker - ankle_marker, axis=1)
 
     close_to_max_extension_interval = get_threshold_intervals(distance_pelv_ank, range_extension, mode="above")
 
-    ankle_in_elevation_interval = get_threshold_intervals(ankle_marker[:,2], high_threshold, mode="above")
+    ankle_in_elevation_interval = get_threshold_intervals(ankle_high_from_ground, high_threshold, mode="above")
 
     common_intervals = intersect_intervals(close_to_max_extension_interval, ankle_in_elevation_interval)
 
     if plot:
         plt.figure(figsize=(12, 4))
-        plt.plot(time_vector, ankle_marker[:,2], label="Ankle", color='blue')
+        plt.plot(time_vector, ankle_high_from_ground, label="Ankle", color='blue')
         plt.plot(time_vector, distance_pelv_ank, label="Distance Pelvis Ankle", color='red')
 
         for start, end in common_intervals:
@@ -229,6 +231,6 @@ def ankle_high(ankle_marker, pelvis_marker, time_vector, leg_length, high_thresh
         plt.tight_layout()
         plt.show()
 
-    lift_with_leg_extend = analyze_intervals_duration(common_intervals, time_vector)
+    lift_with_leg_extend = analyze_intervals_duration(common_intervals, time_vector, ankle_high_from_ground)
 
     return lift_with_leg_extend, distance_pelv_ank

@@ -35,13 +35,12 @@ hip_add_all = []
 hip_flex_all = []
 pdf_list = []
 x_list = []
+foot_outcomes_total = []
 bambiID_list = results_struct.dtype.names  # Extract all Bambi IDs
 
 # Iterate through each Bambi ID
 for i, bambiID in enumerate(results_struct.dtype.names):
     if results_struct[bambiID]['marker_category'][0][0][0] != "full":
-        continue
-    if bambiID == "Bambi040":
         continue
 
     print(f"{bambiID} is running")
@@ -121,15 +120,28 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     data_rows.append(row)
 
     ## Hand to mouth contact
-    distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold=100, time_vector=time_duration, plot=False)
+    R_hand_mouth_contact, L_hand_mouth_contact = distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold=100, time_vector=time_duration, plot=False)
+    add_contact_metrics(
+        dest=row,
+        prefix="R_hand_mouth_contact",
+        durations_per_event=R_hand_mouth_contact["durations_per_event"],
+        amplitude_per_event=R_hand_mouth_contact["amplitude_per_event"]
+    )
+    add_contact_metrics(
+        dest=row,
+        prefix="L_hand_mouth_contact",
+        durations_per_event=L_hand_mouth_contact["durations_per_event"],
+        amplitude_per_event=L_hand_mouth_contact["amplitude_per_event"]
+    )
 
     ## Hand-hand contact
     hand_hand_contact = distance_hand_hand(LWRA, RWRA, threshold=50, time_vector=time_duration, plot=False)
-
-    row["number_of_hand_hand_contact"] = hand_hand_contact["number_of_event"]
-    row["total_time_in_hand_hand_contact"] = hand_hand_contact["time_in_contact"]
-    row["mean_time_hand_hand_contact"] = np.mean(hand_hand_contact["durations_per_event"])
-    row["std_time_hand_hand_contact"] = np.std(hand_hand_contact["durations_per_event"])
+    add_contact_metrics(
+        dest=row,
+        prefix="hand_hand_contact",
+        durations_per_event=hand_hand_contact["durations_per_event"],
+        amplitude_per_event=hand_hand_contact["amplitude_per_event"]
+    )
 
     ## Kicking
     kicking_cycle_outcomes_left, distance_kicking_left, kick_intervals_left = kicking(LPEL,LANK, time_duration, leg_length, LKNE, LPEL, LANK, freq, plot=False)
@@ -145,11 +157,11 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     mean_corr_left, std_corr_left, mean_lags_left, std_lags_left = knee_hip_correlation(knee_angle_left, hip_angle_left, kick_intervals_left)
 
 
-    classification_results = classify_kicks(kick_intervals_right, kick_intervals_left, knee_angle_right, knee_angle_left, fs=freq)
+    # classification_results = classify_kicks(kick_intervals_right, kick_intervals_left, knee_angle_right, knee_angle_left, fs=freq)
 
-    type_counts = Counter(r['type'] for r in classification_results)
-    for k, v in type_counts.items():
-        print(f"{k}: {v}")
+    # type_counts = Counter(r['type'] for r in classification_results)
+    # for k, v in type_counts.items():
+        # print(f"{k}: {v}")
 
     # plot_kick_classification_with_bars(knee_angle_right, knee_angle_left, classification_results, freq)
 
@@ -197,39 +209,43 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
     ## Foot-foot contact
     plantar_plantar_contact_outcomes, foot_foot_contact_outcomes = distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=150, threshold_knee=300, time_vector=time_duration, plot=False)
+    foot_outcomes_total.append(foot_foot_contact_outcomes)
 
-    row["number_of_foot_foot_contact"] = foot_foot_contact_outcomes["number_of_event"]
-    row["total_time_in_foot_foot_contact"] = foot_foot_contact_outcomes["time_in_contact"]
-    row["mean_time_foot_foot_contact"] = np.mean(foot_foot_contact_outcomes["durations_per_event"])
-    row["std_time_foot_foot_contact"] = np.std(foot_foot_contact_outcomes["durations_per_event"])
+    add_contact_metrics(
+        dest=row,
+        prefix="foot_foot_contact",
+        durations_per_event=foot_foot_contact_outcomes["durations_per_event"],
+        amplitude_per_event=foot_foot_contact_outcomes["amplitude_per_event"]
+    )
 
     ## Leg lifting
-    right_lift_with_leg_extend, distance_pelv_ank_right = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=80, max_flexion=30, plot=False)
-    left_lift_with_leg_extend, distance_pelv_ank_left = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=80, max_flexion=30, plot=False)
-
-    row["number_of_right_foot_lift"] = right_lift_with_leg_extend["number_of_event"]
-    row["total_time_in_right_foot_lift"] = right_lift_with_leg_extend["time_in_contact"]
-    row["mean_time_right_foot_lift"] = np.mean(right_lift_with_leg_extend["durations_per_event"])
-    row["std_time_right_foot_lift"] = np.std(right_lift_with_leg_extend["durations_per_event"])
-
-    row["number_of_left_foot_lift"] = left_lift_with_leg_extend["number_of_event"]
-    row["total_time_in_left_foot_lift"] = left_lift_with_leg_extend["time_in_contact"]
-    row["mean_time_left_foot_lift"] = np.mean(left_lift_with_leg_extend["durations_per_event"])
-    row["std_time_left_foot_lift"] = np.std(left_lift_with_leg_extend["durations_per_event"])
+    right_lift_with_leg_extend, distance_pelv_ank_right = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=50, max_flexion=45, plot=False)
+    left_lift_with_leg_extend, distance_pelv_ank_left = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=50, max_flexion=45, plot=False)
+    add_contact_metrics(
+        dest=row,
+        prefix="right_lift_with_leg_extend",
+        durations_per_event=right_lift_with_leg_extend["durations_per_event"],
+        amplitude_per_event=right_lift_with_leg_extend["amplitude_per_event"]
+    )
+    add_contact_metrics(
+        dest=row,
+        prefix="left_lift_with_leg_extend",
+        durations_per_event=left_lift_with_leg_extend["durations_per_event"],
+        amplitude_per_event=left_lift_with_leg_extend["amplitude_per_event"]
+    )
 
     ## Hand-foot contact
     hand_foot_contact_outcomes = distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold=100, time_vector=time_duration, plot=False)
-
-    row["number_of_foot_hand_contact_ipsilateral"] = hand_foot_contact_outcomes["ipsilateral_contact_outcomes"]["number_of_event"]
-    row["total_time_in_foot_hand_contact_ipsilateral"] = hand_foot_contact_outcomes["ipsilateral_contact_outcomes"]["time_in_contact"]
-    row["mean_time_foot_hand_contact_ipsilateral"] = np.mean(hand_foot_contact_outcomes["ipsilateral_contact_outcomes"]["durations_per_event"])
-    row["std_time_foot_hand_contact_ipsilateral"] = np.std(hand_foot_contact_outcomes["ipsilateral_contact_outcomes"]["durations_per_event"])
-
-    row["number_of_foot_hand_contact_contralateral"] = hand_foot_contact_outcomes["contralateral_contact_outcomes"]["number_of_event"]
-    row["total_time_in_foot_hand_contact_contralateral"] = hand_foot_contact_outcomes["contralateral_contact_outcomes"]["time_in_contact"]
-    row["mean_time_foot_hand_contact_contralateral"] = np.mean(hand_foot_contact_outcomes["contralateral_contact_outcomes"]["durations_per_event"])
-    row["std_time_foot_hand_contact_contralateral"] = np.std(hand_foot_contact_outcomes["contralateral_contact_outcomes"]["durations_per_event"])
-
+    add_contact_metrics(
+        dest=row,
+        prefix="foot_hand_contact_contralateral",
+        durations_per_event=hand_foot_contact_outcomes["contralateral_contact_outcomes"]["durations_per_event"],
+    )
+    add_contact_metrics(
+        dest=row,
+        prefix="foot_hand_contact_ipsilateral",
+        durations_per_event=hand_foot_contact_outcomes["ipsilateral_contact_outcomes"]["durations_per_event"],
+    )
 
     ## Wrist ellipsoid
     stats_right_wrist_ellipsoid = plot_ellipsoid_and_points_stickman(
@@ -254,6 +270,9 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
     ## Body symmetry
     body_symmetry(LPEL, RPEL, LSHO, RSHO,40, time_vector=time_duration, plot=False)
+
+
+plot_mean_pdf_contact(foot_outcomes_total, bambiID_list,'Foot_foot',path)
 
 
 # Convert all collected data into a DataFrame

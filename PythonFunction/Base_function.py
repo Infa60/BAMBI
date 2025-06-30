@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import pandas as pd
 from scipy.interpolate import interp1d
+from scipy.stats import skew
 from scipy.signal import hilbert, correlate, butter, filtfilt
 matplotlib.use("TkAgg")
 
@@ -100,35 +101,70 @@ def intersect_intervals(intervals1, intervals2):
     return intersections
 
 
-def analyze_intervals_duration(intervals, time_vector):
+def analyze_intervals_duration(
+    intervals,
+    time_vector: np.ndarray,
+    distance: np.ndarray | None = None,
+):
     """
-    Analyze a list of (start, end) intervals using a time vector.
+    Analyse (start, end) intervals on a time vector.
 
-    Parameters:
-        intervals : list of (start_idx, end_idx) tuples
-        time_vector : np.ndarray – time values in seconds
+    If *distance* is supplied, also compute the peak-to-peak amplitude of the
+    distance signal within each interval.
 
-    Returns:
-        summary : dict with:
-            - number_of_event
-            - time_in_contact
-            - durations_per_event (list of durations in seconds)
+    Parameters
+    ----------
+    intervals : list[tuple[int, int]]
+        Index pairs delimiting each event (inclusive on both ends).
+
+    time_vector : np.ndarray, shape (N,)
+        Time stamps in seconds.
+
+    distance : np.ndarray | None, shape (N,), optional
+        Signal for which peak-to-peak amplitudes will be computed.
+        If None (default), amplitude metrics are skipped.
+
+    Returns
+    -------
+    dict
+        Always contains:
+            'number_of_event'
+            'time_in_contact'
+            'durations_per_event'
+        Contains, when distance is provided:
+            'amplitude_per_event'
     """
     durations_per_event = []
+    amplitude_per_event = []          # will stay empty if distance is None
+
+    n_samples = len(time_vector)
+    use_distance = distance is not None
 
     for start, end in intervals:
-        if end < len(time_vector):  # safety check
-            duration = time_vector[end] - time_vector[start]
-            durations_per_event.append(duration)
+        # --- basic sanity checks ---
+        if start >= n_samples or end >= n_samples or start >= end:
+            continue
 
-    total_time = np.sum(durations_per_event)
-    count = len(durations_per_event)
+        # duration in seconds
+        duration = float(time_vector[end] - time_vector[start])
+        durations_per_event.append(duration)
 
-    return {
-        'number_of_event': count,
-        'time_in_contact': total_time,
-        'durations_per_event': durations_per_event
+        # amplitude if requested
+        if use_distance:
+            seg = distance[start : end + 1]          # end inclusive
+            amp = float(np.ptp(seg))                 # max - min
+            amplitude_per_event.append(amp)
+
+    summary = {
+        "number_of_event"    : len(durations_per_event),
+        "time_in_contact"    : float(np.sum(durations_per_event)),
+        "durations_per_event": durations_per_event,
     }
+
+    if use_distance:
+        summary["amplitude_per_event"] = amplitude_per_event
+
+    return summary
 
 def plot_time_series(time_vector, title="Time Series Plot", ylabel="Value", **kwargs):
     """
@@ -169,41 +205,6 @@ def plot_time_series(time_vector, title="Time Series Plot", ylabel="Value", **kw
     plt.tight_layout()
     plt.show()
 
-def phase_antiphase(dist_left, dist_right, time_vector):
-    # --- Compute analytic signals ---
-    analytic_left = hilbert(dist_left)
-    analytic_right = hilbert(dist_right)
-
-    # --- Extract instantaneous phases ---
-    phase_left = np.unwrap(np.angle(analytic_left))
-    phase_right = np.unwrap(np.angle(analytic_right))
-
-    # --- Compute phase difference ---
-    phase_diff = phase_left - phase_right  # in radians
-    phase_diff = (phase_diff + np.pi) % (2 * np.pi) - np.pi  # wrap to [-π, π]
-
-    sync_index = np.mean(np.cos(phase_diff))  # ∈ [-1, 1]
-    print(sync_index)
-
-    corr = correlate(dist_right, dist_left, mode='full')
-    lags = np.arange(-len(dist_right) + 1, len(dist_right))
-    lag_at_max = lags[np.argmax(corr)]
-    time_lag = lag_at_max * 1/200
-    print(time_lag)
-
-    # --- Plot phase difference over time ---
-    plt.figure(figsize=(10, 4))
-    plt.plot(time_vector, phase_diff, label="Phase difference (left - right)")
-    plt.axhline(0, color='black', linestyle='--', linewidth=1)
-    plt.axhline(np.pi, color='gray', linestyle=':', linewidth=0.8)
-    plt.axhline(-np.pi, color='gray', linestyle=':', linewidth=0.8)
-    plt.ylabel("Phase difference (rad)")
-    plt.xlabel("Time (s)")
-    plt.title("Phase difference between left and right leg")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
 
 def get_leg_and_tibia_length(file_path, bambiID):
     # Load CSV with semicolon separator (common in French exports)
@@ -266,6 +267,120 @@ def butter_lowpass_filter(data, cutoff, fs, order=2):
     b, a = butter(order, normal_cutoff, btype='low', analog=False)
     filtered_data = filtfilt(b, a, data, axis=0)  # Zero-phase filtering
     return filtered_data
+
+def add_summary_stats(
+    dest: dict,
+    prefix: str,
+    values,
+    nan_fill=np.nan,
+    ndigits: int = 2
+):
+    """
+    Append Min, Max, P5, P95, Mean, SD, Skewness to *dest* for the given *values*.
+
+    Parameters
+    ----------
+    dest    : dict
+        Dictionary that will be updated in place.
+
+    prefix  : str
+        Key prefix to use, e.g. "time_hand_hand_contact".
+        Resulting keys will be:
+            <prefix>_min, _max, _p05, _p95, _mean, _sd, _skew
+
+    values  : array-like
+        Iterable of numeric values. NaNs are ignored.
+
+    nan_fill: float
+        Value to write when *values* is empty or only NaNs (default = np.nan).
+    """
+    vals = np.asarray(values, dtype=float)
+
+    # Remove NaNs for robust stats
+    vals = vals[np.isfinite(vals)]
+    if vals.size == 0:
+        stats = {k: nan_fill for k in
+                 ("min", "max", "p05", "p95", "mean", "sd", "skew")}
+    else:
+        stats = {
+            "min" : np.min(vals),
+            "max" : np.max(vals),
+            "p05" : np.percentile(vals, 5),
+            "p95" : np.percentile(vals, 95),
+            "mean": np.mean(vals),
+            "sd"  : np.std(vals, ddof=0),          # population SD
+            "skew": skew(vals, bias=False),
+        }
+
+    # Update destination dict with prefixed keys
+    for k, v in stats.items():
+        if np.isfinite(v):
+            dest[f"{prefix}_{k}"] = round(float(v), ndigits)
+        else:
+            dest[f"{prefix}_{k}"] = nan_fill
+
+def add_contact_metrics(
+    dest: dict,
+    prefix: str,
+    durations_per_event,
+    amplitude_per_event=None,
+    nan_fill=np.nan,
+    ndigits: int = 2
+):
+    """
+    Update *dest* with all metrics for a contact type (left hand-mouth, right
+    hand-hand, etc.).
+
+    Parameters
+    ----------
+    dest : dict
+        Row/dictionary updated in place.
+
+    prefix : str
+        Base prefix, e.g. "L_hand_mouth_contact".
+        Keys created:
+            number_of_<prefix>
+            total_time_in_<prefix>
+            time_<prefix>_<stat>      (stats on durations)
+            distance_<prefix>_<stat>  (stats on amplitude, if provided)
+
+    durations_per_event : array-like
+        Durations (s) for each event.
+
+    amplitude_per_event : array-like | None, optional
+        Peak-to-peak amplitudes per event. If None, distance stats are skipped.
+
+    nan_fill : float
+        Value written when the supplied list is empty (default = np.nan).
+    """
+    # --- ensure numeric & drop NaNs ---
+    durs = np.asarray(durations_per_event, dtype=float)
+    durs = durs[np.isfinite(durs)]
+
+    # Basic event metrics
+    dest[f"number_of_{prefix}"]      = int(durs.size)
+    dest[f"total_time_in_{prefix}"]  = round(float(np.sum(durs)),ndigits) if durs.size else nan_fill
+
+    # Stats on durations
+    add_summary_stats(
+        dest   = dest,
+        prefix = f"time_{prefix}",
+        values = durs,
+        nan_fill = nan_fill,
+        ndigits = ndigits
+    )
+
+    # Stats on amplitude (optional)
+    if amplitude_per_event is not None:
+        amps = np.asarray(amplitude_per_event, dtype=float)
+        amps = amps[np.isfinite(amps)]
+        add_summary_stats(
+            dest   = dest,
+            prefix = f"distance_{prefix}",
+            values = amps,
+            nan_fill = nan_fill,
+            ndigits = ndigits
+        )
 
 
 # === STEP 1: Compute angular threshold from cohort-wide shoulder widths ===

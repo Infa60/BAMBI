@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
+import os
 from matplotlib.widgets import Button
-import numpy as np
+from scipy.stats import gaussian_kde, skew, kurtosis
 from PythonFunction.Base_function import *
 
 def extract_kick_intervals(
@@ -272,3 +273,107 @@ def label_and_save_kick(knee_angle_d, knee_angle_g, start, end, kick_side, save_
     plt.show()
 
     return save_list
+
+
+def plot_mean_pdf_foot_contact_2(
+    foot_outcomes_total,
+    bambiID_list,
+    plot_name,
+    folder_save_path,
+    grid_points=500,
+    grid_max_percentile=98,      # borne sup. = p-quantile global
+    show_std=True,
+    all_line=True,
+    bandwidth='scott',
+):
+    """
+    PDF moyenne des durées de contact pied-pied (méthode de réflexion).
+    La densité s'annule à 0 s et reste finie aux grandes durées.
+    """
+
+    # ---------- Collecte des durées + choix de la grille ----------
+    all_durations = []
+    for outcome in foot_outcomes_total:
+        all_durations.extend(outcome["durations_per_event"])
+    all_durations = np.asarray(all_durations, dtype=float)
+    if all_durations.size == 0:
+        raise ValueError("Aucune durée dans foot_outcomes_total.")
+
+    grid_min = 0.0
+    grid_max = np.percentile(all_durations, grid_max_percentile)
+    grid = np.linspace(grid_min, grid_max, grid_points)
+
+    kdes = []
+    stats_data = []
+    n_events_list, time_contact_list = [], []
+
+    # ---------- KDE avec réflexion ----------
+    for idx, outcome in enumerate(foot_outcomes_total):
+        durations = np.asarray(outcome["durations_per_event"], dtype=float)
+        if durations.size == 0:
+            continue
+
+        # Réflexion autour de 0
+        durations_reflect = -durations
+        data_for_kde = np.concatenate([durations, durations_reflect])
+
+        kde = gaussian_kde(data_for_kde, bw_method=bandwidth)
+        pdf_pos = 2 * kde(grid)      # correction du facteur 2
+        kdes.append(pdf_pos)
+
+        stats_data.append([
+            bambiID_list[idx],
+            skew(pdf_pos),
+            kurtosis(pdf_pos)
+        ])
+
+        n_events_list.append(outcome["number_of_event"])
+        time_contact_list.append(outcome["time_in_contact"])
+
+    kdes = np.array(kdes)
+    mean_pdf = kdes.mean(axis=0)
+    std_pdf  = kdes.std(axis=0)
+    lower, upper = np.clip(mean_pdf - std_pdf, 0, None), mean_pdf + std_pdf
+
+    stats_data.append(["Total Mean", skew(mean_pdf), kurtosis(mean_pdf)])
+    pd.DataFrame(stats_data,
+                 columns=["Subject", "Skewness", "Kurtosis"]
+                 ).to_csv(
+        os.path.join(folder_save_path,
+                     f"{plot_name}_stats_on_KDE_PDF.csv"),
+        index=False
+    )
+
+    # ---------- Stats descriptives brutes ----------
+    mean_n_evt, std_n_evt = np.mean(n_events_list), np.std(n_events_list)
+    mean_t_cont, std_t_cont = np.mean(time_contact_list), np.std(time_contact_list)
+
+    # ---------- Plot ----------
+    plt.figure(figsize=(8, 5))
+    plt.plot(grid, mean_pdf, color="black", lw=2, label="Mean PDF")
+
+    if all_line:
+        for pdf in kdes:
+            plt.plot(grid, pdf, color="gray", alpha=0.25)
+    if show_std:
+        plt.fill_between(grid, lower, upper, color="black", alpha=0.3, label="±1 SD")
+
+    txt = (f"Number of events : {mean_n_evt:.1f} ± {std_n_evt:.1f}\n"
+           f"Total time in contact : {mean_t_cont:.2f} ± {std_t_cont:.2f} s")
+    plt.text(0.02, 0.965, txt, transform=plt.gca().transAxes,
+             va="top", ha="left", fontsize=11,
+             bbox=dict(facecolor="white", edgecolor="lightgrey",
+                       boxstyle="round,pad=0.4", alpha=0.8))
+
+    plt.title(f"Mean PDF of Foot-Foot Contact Durations – {plot_name}")
+    plt.xlabel("Duration per event (s)")
+    plt.ylabel("Probability Density")
+    plt.xlim(grid_min, grid_max)
+    plt.ylim(bottom=0)
+    plt.legend()
+    plt.tight_layout()
+
+    fig_path = os.path.join(folder_save_path,
+                            f"{plot_name}_mean_pdf_durations.png")
+    plt.savefig(fig_path, dpi=300)
+    plt.close()
