@@ -97,7 +97,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     total_time_sec = time_duration[-1]
     total_time_min = total_time_sec / 60.0
 
-    bambi_folder = os.path.join(path, bambiID)
+    bambi_folder = os.path.join(path, "individual_plot", bambiID)
     os.makedirs(bambi_folder, exist_ok=True)
 
     leg_length, shank_length = get_leg_and_tibia_length(anthropo_file, bambiID)
