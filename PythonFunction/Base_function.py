@@ -203,7 +203,6 @@ def plot_time_series(time_vector, title="Time Series Plot", ylabel="Value", **kw
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
 
 
 def get_leg_and_tibia_length(file_path, bambiID):

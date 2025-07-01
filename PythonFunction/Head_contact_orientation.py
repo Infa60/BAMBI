@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import matplotlib.pyplot as plt
 import matplotlib
 from mpl_toolkits.mplot3d import Axes3D
@@ -69,7 +70,7 @@ def get_head_rot_matrix_and_mouth_pos(CSHD, LSHD, RSHD, FSHD):
 
     return Mouth_position, R_head
 
-def distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold, time_vector, plot=False):
+def distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold, time_vector, folder_outcome, plot_name, plot=False):
     """
     Analyze hand-to-hand proximity events.
 
@@ -95,6 +96,10 @@ def distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold, time_vect
     if plot:
         plot_time_series(time_vector, Right=distance_handR_mouth, Left=distance_handL_mouth, threshold=threshold,
                          ylabel="Distance (mm)", title="Distance Between Mouth and Left / Right Hands Over Time")
+        plt.savefig(os.path.join(folder_outcome, f"{plot_name}_hand_mouth.png"), dpi=300)
+        plt.close()
+
+
 
     # 5. Return summary dictionary
     return R_hand_contact, L_hand_contact

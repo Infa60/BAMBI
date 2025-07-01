@@ -97,23 +97,6 @@ def plot_ellipsoid_and_points_stickman(
     - A stickman model connecting those markers,
     - A 90% confidence ellipsoid around a specific marker,
     - And optionally the point cloud within or outside the ellipsoid.
-
-    Parameters
-    ----------
-    point_of_interest : Marker trajectory point_of_interest used to fit the ellipsoid (frames × 3).
-
-    RANK, LANK, RKNE, LKNE, RSHO, LSHO, RELB, LELB, RWRA, LWRA :
-        3D coordinates (N_frames × 3) for each body marker .
-
-    bambiID : Identifier of the trial or subject, used to name the saved figure.
-
-    folder_save_path : Directory where the figure will be saved .
-
-    interactive :  True, displays an interactive 3D plot; if False, saves a static image.
-
-    inside_point : If True, shows all trajectory points.
-
-    outside_point : If True, shows only the points inside the ellipsoid.
     """
     os.makedirs(folder_save_path, exist_ok=True)
 
