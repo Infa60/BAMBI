@@ -209,8 +209,8 @@ def get_leg_and_tibia_length(file_path, bambiID):
     df = pd.read_csv(file_path, sep=',')
     df.columns = df.columns.str.strip()  # clean up any whitespace in column names
 
-    leg_length = df[df['Inclusion number'] == bambiID]['TLL'][0] # 40% of body size
-    tibia_length = df[df['Inclusion number'] == bambiID]['LLL'][0] # 40% of leg length
+    leg_length = df[df['Inclusion number'] == bambiID]['TLL'].iloc[0] # 40% of body size
+    tibia_length = df[df['Inclusion number'] == bambiID]['LLL'].iloc[0] # 40% of leg length
 
     return leg_length, tibia_length
 

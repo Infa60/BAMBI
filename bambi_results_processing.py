@@ -152,17 +152,10 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
     ## TEST
 
-    # plot_marker_speed_color(time = time_duration, xyz = RANK, fs = freq)
 
-    plot_multi_markers_speed_color(
-        time=time_duration, fs=freq, thr=0.1, gap_tol=2.0, cutoff=6,
-        RANK=RANK, LANK=LANK, RKNE=RKNE, LKNE=LKNE, RWRA=RWRA, LWRA=LWRA
+    plot_multi_markers_speed_color(time=time_duration, fs=freq, thr=0.1, gap_tol=2.0, cutoff=6,
+        RANK=RANK, LANK=LANK, RKNE=RKNE, LKNE=LKNE
     )
-
-    plot_multi_markers_speed_color2(time=time_duration, fs=freq, thr=0.1, gap_tol=2.0, cutoff=6,
-        RANK=RANK, LANK=LANK, RKNE=RKNE, LKNE=LKNE, RWRA=RWRA, LWRA=LWRA
-    )
-
 
 
 
@@ -252,7 +245,6 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     ank_mouv_row["num_enclosed"] = stats_ankle_ellipsoid["num_enclosed"]
     ank_mouv_row["percentage_enclosed"] = stats_ankle_ellipsoid["percentage_enclosed"]
     ank_mouv_row["volume_90"] = stats_ankle_ellipsoid["volume_90"]
-    ank_mouv_row["skew_velocity"] = skew(results_struct[bambiID]["velocity_ankle"][0, 0]).item()
 
 
     ## Hand to mouth contact
