@@ -16,14 +16,15 @@ from PythonFunction.Head_contact_orientation import *
 from PythonFunction.Base_function import *
 from PythonFunction.TEST import *
 from PythonFunction.Leg_lift_adduct import *
+from PythonFunction.Quantity_movement import *
 
 # Set matplotlib backend
 matplotlib.use("TkAgg")
 
 # Set path and load .mat file
 path = "/Users/mathieubourgeois/Documents/BAMBI_Data"
-result_file = f"{path}/resultats.mat"
-anthropo_file = f"{path}/REDcap_template_3months.csv"
+result_file = f"{path}/resultat_grouped_by_bambi.mat"
+anthropo_file = f"{path}/3_months_validity_and_reliability.csv"
 
 data = scipy.io.loadmat(result_file)
 
@@ -149,6 +150,23 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     LSHD = results_struct[bambiID]["LSHD"][0, 0]
     RSHD = results_struct[bambiID]["RSHD"][0, 0]
 
+    ## TEST
+
+    # plot_marker_speed_color(time = time_duration, xyz = RANK, fs = freq)
+
+    plot_multi_markers_speed_color(
+        time=time_duration, fs=freq, thr=0.1, gap_tol=2.0, cutoff=6,
+        RANK=RANK, LANK=LANK, RKNE=RKNE, LKNE=LKNE, RWRA=RWRA, LWRA=LWRA
+    )
+
+    plot_multi_markers_speed_color2(time=time_duration, fs=freq, thr=0.1, gap_tol=2.0, cutoff=6,
+        RANK=RANK, LANK=LANK, RKNE=RKNE, LKNE=LKNE, RWRA=RWRA, LWRA=LWRA
+    )
+
+
+
+
+    ## FIN TEST
 
     ## Leg adduction flexion
     hip_add_r, hip_add_l = compute_hip_adduction_angles(RPEL, LPEL, RANK, LANK, RSHO, LSHO)

@@ -206,41 +206,12 @@ def plot_time_series(time_vector, title="Time Series Plot", ylabel="Value", **kw
 
 
 def get_leg_and_tibia_length(file_path, bambiID):
-    # Load CSV with semicolon separator (common in French exports)
-    df = pd.read_csv(file_path, sep=';')
+    df = pd.read_csv(file_path, sep=',')
     df.columns = df.columns.str.strip()  # clean up any whitespace in column names
 
-    # Extract the numeric part from the Bambi ID
-    participant_num = int(bambiID[-3:])
+    leg_length = df[df['Inclusion number'] == bambiID]['TLL'][0] # 40% of body size
+    tibia_length = df[df['Inclusion number'] == bambiID]['LLL'][0] # 40% of leg length
 
-    # Select all rows for this participant (there may be two: left and right side)
-    rows = df[df['participant_number'] == participant_num]
-    if rows.empty:
-        raise ValueError(f"No data found for participant {bambiID}")
-
-    # Replace commas with dots for decimal conversion (e.g., "22,5" → "22.5")
-    rows = rows.replace(',', '.', regex=True).infer_objects(copy=False)
-
-    # Convert relevant columns to float (ignore conversion errors)
-    for col in [
-        'visit_total_left_leg_length', 'visit_total_right_leg_length',
-        'visit_left_lower_leg_length', 'visit_right_lower_leg_length'
-    ]:
-        rows[col] = pd.to_numeric(rows[col], errors='coerce')
-
-    # Combine all left/right leg length values and pick the first available
-    leg_length = pd.concat([
-        rows['visit_total_left_leg_length'],
-        rows['visit_total_right_leg_length']
-    ]).dropna().iloc[0]
-
-    # Combine all left/right tibia length values and pick the first available
-    tibia_length = pd.concat([
-        rows['visit_left_lower_leg_length'],
-        rows['visit_right_lower_leg_length']
-    ]).dropna().iloc[0]
-    leg_length = leg_length * 10
-    tibia_length =  tibia_length * 10
     return leg_length, tibia_length
 
 
@@ -382,24 +353,27 @@ def add_contact_metrics(
         )
 
 
-# === STEP 1: Compute angular threshold from cohort-wide shoulder widths ===
+def compute_speed(time, xyz):
+    """
+    Compute the instantaneous speed |v| for a 3-D trajectory.
 
-# Half of inter-shoulder distances (in meters) across baby
-#inter_shoulder_half_lengths = np.array([...])
+    Parameters
+    ----------
+    time : (N,) array-like
+        Time stamps in seconds.
+    xyz : (N, 3) array-like
+        Marker positions in meters.
 
-# 1. Input parameters
-#desired_offset_m = 20
+    Returns
+    -------
+    speed : (N,) ndarray
+        Speed (m/s) at each time step.
+    """
+    time = np.asarray(time)
+    xyz  = np.asarray(xyz)
 
-# 2. Compute the angle in radians using arctangent
-#angle_threshold_rad = np.arctan(desired_offset_m / np.mean(inter_shoulder_half_lengths))
+    dt       = np.gradient(time)                     # Δt between samples
+    velocity = np.gradient(xyz, axis=0) / dt[:, None]  # numerical derivative
+    speed    = np.linalg.norm(velocity, axis=1)      # magnitude of velocity
 
-# 3. Convert to degrees for easier interpretation
-#angle_threshold_deg = np.degrees(angle_threshold_rad)
-
-# === STEP 2: For a specific baby, compute their personalized max offset ===
-
-# Half shoulder width for the current subject
-#half_shoulder_width_baby = 0.085  # replace with actual measurement
-
-# Max lateral offset allowed before calling it "misalignment"
-#max_offset = np.tan(angle_threshold_rad) * half_shoulder_width_baby
+    return speed
