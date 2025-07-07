@@ -17,13 +17,15 @@ from PythonFunction.Base_function import *
 from PythonFunction.TEST import *
 from PythonFunction.Leg_lift_adduct import *
 from PythonFunction.Quantity_movement import *
+from PythonFunction.Correlation import *
 
 # Set matplotlib backend
 matplotlib.use("TkAgg")
 
 # Set path and load .mat file
 path = "/Users/mathieubourgeois/Documents/BAMBI_Data"
-result_file = f"{path}/resultat_grouped_by_bambi.mat"
+outcome_path = f"{path}/Outcome"
+result_file = f"{path}/resultat_no_combined.mat"
 anthropo_file = f"{path}/3_months_validity_and_reliability.csv"
 
 data = scipy.io.loadmat(result_file)
@@ -48,6 +50,7 @@ data_leg_lift_row = []
 data_leg_kick_row = []
 data_leg_flex_add_row = []
 data_ank_mouv_row = []
+data_marker_velocity_row = []
 
 
 hip_add_all = []
@@ -65,14 +68,15 @@ legL_lift_outcomes_total = []
 
 bambiID_list = results_struct.dtype.names  # Extract all Bambi IDs
 
-hand_hand_path = os.path.join(path, "hand_hand")
-foot_foot_path = os.path.join(path, "foot_foot")
-hand_foot_path = os.path.join(path, "hand_foot")
-hand_mouth_path = os.path.join(path, "hand_mouth")
-leg_lift_path = os.path.join(path, "leg_lift")
-leg_kick_path = os.path.join(path, "leg_kick")
-leg_flex_add_path = os.path.join(path, "leg_flex_add")
-ank_mouv_path = os.path.join(path, "ank_mouv")
+hand_hand_path = os.path.join(outcome_path, "hand_hand")
+foot_foot_path = os.path.join(outcome_path, "foot_foot")
+hand_foot_path = os.path.join(outcome_path, "hand_foot")
+hand_mouth_path = os.path.join(outcome_path, "hand_mouth")
+leg_lift_path = os.path.join(outcome_path, "leg_lift")
+leg_kick_path = os.path.join(outcome_path, "leg_kick")
+leg_flex_add_path = os.path.join(outcome_path, "leg_flex_add")
+ank_mouv_path = os.path.join(outcome_path, "ank_mouv")
+marker_velocity_path = os.path.join(outcome_path, "marker_velocity")
 
 for folder in [
     hand_hand_path, foot_foot_path, hand_foot_path, hand_mouth_path,
@@ -86,6 +90,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         continue
 
     print(f"{bambiID} is running")
+    bambi_name = bambiID.split("_", 1)[0]
 
     laterality = results_struct[bambiID]['laterality'][0][0][0][0][0]
 
@@ -98,10 +103,10 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     total_time_sec = time_duration[-1]
     total_time_min = total_time_sec / 60.0
 
-    bambi_folder = os.path.join(path, "individual_plot", bambiID)
+    bambi_folder = os.path.join(outcome_path, "individual_plot", bambi_name)
     os.makedirs(bambi_folder, exist_ok=True)
 
-    leg_length, shank_length = get_leg_and_tibia_length(anthropo_file, bambiID)
+    leg_length, shank_length = get_leg_and_tibia_length(anthropo_file, bambi_name)
 
     hand_hand_row = {}
     foot_foot_row = {}
@@ -111,6 +116,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     leg_kick_row = {}
     leg_flex_add_row = {}
     ank_mouv_row = {}
+    marker_velocity_row = {}
 
     all_rows = [
         hand_hand_row,
@@ -121,6 +127,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         leg_kick_row,
         leg_flex_add_row,
         ank_mouv_row,
+        marker_velocity_row,
     ]
 
     # bambiID est défini juste avant
@@ -150,16 +157,44 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     LSHD = results_struct[bambiID]["LSHD"][0, 0]
     RSHD = results_struct[bambiID]["RSHD"][0, 0]
 
-    ## TEST
+    pairs = {
+        "RWRA–LANK": (RWRA, LANK),
+        "RWRA–RANK": (RWRA, RANK),
+        "LWRA–LANK": (LWRA, LANK),
+        "LWRA–RANK": (LWRA, RANK),
+        "RWRA–LWRA": (RWRA, LWRA),
+        "LANK–RANK": (LANK, RANK),
+    }
+
+    results_CCA = {}
+    for name, (A, B) in pairs.items():
+        rho, wA, wB, ang_xy, ang_3d = cca_first_component_sklearn(A, B, plane="xy")
+        results_CCA[name] = dict(rho=rho, angle=ang_xy, angle_3d= ang_3d,
+                             wA=wA, wB=wB)
+
+    for k, d in results_CCA.items():
+        print(f"{k}: ρ₁ = {d['rho']:.3f}, angleXY = {d['angle']:.1f}°, angle3D = {d['angle_3d']:.1f}°")
+
+    marker_to_velocity_compute = {
+        "RWRA":RWRA,
+        "LWRA":LWRA,
+        "RANK":RANK,
+        "LANK":LANK,
+        "RKNE":RKNE,
+        "LKNE":LKNE,
+        "RELB":RELB,
+        "LELB":LELB,
+    }
+
+    for marker_name, marker_xyz in marker_to_velocity_compute.items():
+        marker_velocity = compute_speed(time_duration, marker_xyz)
+        marker_velocity_outcome(marker_velocity, row = marker_velocity_row, marker_name = marker_name)
 
 
-    plot_multi_markers_speed_color(time=time_duration, fs=freq, thr=0.1, gap_tol=2.0, cutoff=6,
-        RANK=RANK, LANK=LANK, RKNE=RKNE, LKNE=LKNE
-    )
-
-
-
-    ## FIN TEST
+    interval_movement_common = plot_multi_markers_speed_color(time=time_duration, fs=freq, thr=0.01, gap_tol=0.5,
+                                                              cutoff=6, show_common='intersection', RANK=RANK, LANK=LANK,
+                                                              RKNE=RKNE, LKNE=LKNE
+                                                              )
 
     ## Leg adduction flexion
     hip_add_r, hip_add_l = compute_hip_adduction_angles(RPEL, LPEL, RANK, LANK, RSHO, LSHO)
@@ -176,27 +211,27 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
     plot_cdf(
              {"Right Hip Add": hip_add_r, "Left Hip Add": hip_add_l},
-            plot_name = "Adduction",
+            plot_name = f"{bambiID}_Adduction",
             folder_outcome = bambi_folder,
             plot = True
          )
     plot_hist_kde(
             data_left=hip_add_l, data_right=hip_add_r,
             label_left='Left Hip Add', label_right='Right Hip Add',
-            bin_width=1.0, plot_name= "Adduction", folder_outcome = bambi_folder,
+            bin_width=1.0, plot_name= f"{bambiID}_Adduction", folder_outcome = bambi_folder,
             color_left='b', color_right='r', bandwidth=2.0, plot= True
         )
 
     plot_cdf(
              {"Right Hip Flex": hip_flex_r, "Left Hip Flex": hip_flex_l},
-            plot_name = "Flexion",
+            plot_name = f"{bambiID}_Flexion",
             folder_outcome = bambi_folder,
             plot = True
          )
     plot_hist_kde(
             data_left=hip_flex_l, data_right=hip_flex_r,
             label_left='Left Hip Flex', label_right='Right Hip FLex',
-            bin_width=1.0, plot_name= "Flexion", folder_outcome = bambi_folder,
+            bin_width=1.0, plot_name= f"{bambiID}_Flexion", folder_outcome = bambi_folder,
             color_left='b', color_right='r', bandwidth=2.0, plot= True
         )
 
@@ -208,8 +243,8 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
 
     ## Leg lifting
-    right_lift_with_leg_extend, distance_pelv_ank_right = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=ankle_high_treshold, max_flexion=45, folder_outcome=bambi_folder, plot_name="Right", plot=True)
-    left_lift_with_leg_extend, distance_pelv_ank_left = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=ankle_high_treshold, max_flexion=45, folder_outcome=bambi_folder, plot_name="Left", plot=True)
+    right_lift_with_leg_extend, distance_pelv_ank_right = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=ankle_high_treshold, max_flexion=45, folder_outcome=bambi_folder, plot_name=f"{bambiID}_Right", plot=True)
+    left_lift_with_leg_extend, distance_pelv_ank_left = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=ankle_high_treshold, max_flexion=45, folder_outcome=bambi_folder, plot_name=f"{bambiID}_Left", plot=True)
     add_contact_metrics(
         dest=leg_lift_row,
         prefix="right_lift_with_leg_extend",
@@ -250,7 +285,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     ## Hand to mouth contact
     R_hand_mouth_contact, L_hand_mouth_contact = (
         distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold=hand_mouth_threshold,
-                            time_vector=time_duration, folder_outcome=bambi_folder, plot_name="Right_left", plot=True))
+                            time_vector=time_duration, folder_outcome=bambi_folder, plot_name=f"{bambiID}_Right_left", plot=True))
     add_contact_metrics(
         dest=hand_mouth_row,
         prefix="R_hand_mouth_contact",
@@ -269,7 +304,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
     ## Hand-hand contact
     hand_hand_contact = distance_hand_hand(LWRA, RWRA, threshold=hand_hand_threshold, time_vector=time_duration,
-                                           folder_outcome=bambi_folder, plot_name="Right_left", plot=True)
+                                           folder_outcome=bambi_folder, plot_name=f"{bambiID}_Right_left", plot=True)
     add_contact_metrics(
         dest=hand_hand_row,
         prefix="hand_hand_contact",
@@ -283,7 +318,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     plantar_plantar_contact_outcomes, foot_foot_contact_outcomes = (
         distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle=foot_foot_threshold,
                            threshold_knee=knee_knee_threshold, time_vector=time_duration, folder_outcome=bambi_folder,
-                           plot_name="Right_left", plot=True))
+                           plot_name=f"{bambiID}_Right_left", plot=True))
     add_contact_metrics(
         dest=foot_foot_row,
         prefix="foot_foot_contact",
@@ -296,7 +331,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     ## Hand-foot contact
     hand_foot_contact_outcomes = distance_hand_foot(LANK, RANK, LWRA, RWRA, threshold=hand_foot_threshold,
                                                     time_vector=time_duration, folder_outcome=bambi_folder,
-                                                    plot_name="Right_left", plot=True)
+                                                    plot_name=f"{bambiID}_Right_left", plot=True)
     add_contact_metrics(
         dest=hand_foot_row,
         prefix="foot_hand_contact_contralateral",
@@ -314,7 +349,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     ## Wrist ellipsoid
     stats_right_wrist_ellipsoid = plot_ellipsoid_and_points_stickman(
         RWRA, RANK, LANK, RKNE, LKNE, RPEL, LPEL, RSHO, LSHO, RELB, LELB, LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, bambiID,
-        folder_save_path=f"{path}/Right_Wrist_Outcomes_plot",
+        folder_save_path=f"{outcome_path}/Right_Wrist_Outcomes_plot",
         confidence_threshold=0.99,
         interactive=False,
         inside_point=False,
@@ -322,7 +357,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     )
     stats_left_wrist_ellipsoid = plot_ellipsoid_and_points_stickman(
         LWRA, RANK, LANK, RKNE, LKNE, RPEL, LPEL, RSHO, LSHO, RELB, LELB, LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, bambiID,
-        folder_save_path=f"{path}/Left_Wrist_Outcomes_plot",
+        folder_save_path=f"{outcome_path}/Left_Wrist_Outcomes_plot",
         confidence_threshold=0.99,
         interactive=False,
         inside_point=False,
@@ -420,6 +455,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     data_leg_kick_row.append(leg_kick_row)
     data_leg_flex_add_row.append(leg_flex_add_row)
     data_ank_mouv_row.append(ank_mouv_row)
+    data_marker_velocity_row.append(marker_velocity_row)
 
 ## Foot foot plot
 plot_mean_pdf_contact (foot_outcomes_total, bambiID_list, 'foot_foot', foot_foot_path, field="durations_per_event",
@@ -469,6 +505,8 @@ data_map = {
     "leg_kick":     (data_leg_kick_row,     leg_kick_path),
     "leg_flex_add": (data_leg_flex_add_row, leg_flex_add_path),
     "ank_mouv":     (data_ank_mouv_row,     ank_mouv_path),
+    "marker_velocity": (data_marker_velocity_row, marker_velocity_path),
+
 }
 
 # 5) Write one CSV per folder

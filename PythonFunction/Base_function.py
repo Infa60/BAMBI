@@ -377,3 +377,4 @@ def compute_speed(time, xyz):
     speed    = np.linalg.norm(velocity, axis=1)      # magnitude of velocity
 
     return speed
+

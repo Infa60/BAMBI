@@ -34,7 +34,7 @@ def plot_multi_markers_speed_color(
         cutoff=6, order=2,
         cmap=('blue', 'red'),
         linewidth=6,
-        show_common=True,
+        show_common='intersection',
         **xyz_mm):
     """
     Draw one horizontal bar per marker showing speed > `thr` (red)
@@ -103,9 +103,9 @@ def plot_multi_markers_speed_color(
         ax.spines[['left', 'right', 'top']].set_visible(False)
 
     # --------------------------------------------------------------
-    # Common (intersection) bar
+    # Common (intersection or union) bar
     # --------------------------------------------------------------
-    if show_common:
+    if show_common == 'intersection':
         common_mask = np.logical_and.reduce(red_masks)
         common_intervals = mask_to_intervals(common_mask, t)
         ax_common = axes[-1]                       # last row
@@ -116,6 +116,25 @@ def plot_multi_markers_speed_color(
         ax_common.set_ylim(-0.3, 0.3)
         ax_common.set_yticks([])
         ax_common.text(-0.02, 0.5, 'COMMON', ha='right', va='center',
+                       transform=ax_common.transAxes, fontsize=9,
+                       fontweight='bold')
+        ax_common.spines[['left', 'right', 'top']].set_visible(False)
+
+    if show_common == 'union':
+        # use logical OR instead of AND  ➜ at least one marker is red
+        union_mask = np.logical_or.reduce(red_masks)
+        common_intervals = mask_to_intervals(union_mask, t)
+
+        ax_common = axes[-1]  # last row (extra bar)
+        segs = build_segments(t)
+        colors = [red if f else blue for f in union_mask[:-1]]
+        ax_common.add_collection(
+            LineCollection(segs, colors=colors, linewidth=linewidth)
+        )
+
+        ax_common.set_ylim(-0.3, 0.3)
+        ax_common.set_yticks([])
+        ax_common.text(-0.02, 0.5, 'UNION', ha='right', va='center',
                        transform=ax_common.transAxes, fontsize=9,
                        fontweight='bold')
         ax_common.spines[['left', 'right', 'top']].set_visible(False)
@@ -137,3 +156,23 @@ def plot_multi_markers_speed_color(
     plt.tight_layout()
     plt.show()
     return common_intervals
+
+
+def marker_velocity_outcome(
+        marker_velocity: np.ndarray,
+        row: dict,
+        marker_name: str,
+        ndigits: int = 2):
+    if marker_velocity.size == 0:
+        vals = dict(mean=np.nan, std=np.nan, skew=np.nan, max=np.nan)
+    else:
+        vals = {
+            "mean": np.nanmean(marker_velocity),
+            "std": np.nanstd(marker_velocity),
+            "skew": skew(marker_velocity, nan_policy="omit", bias=False),
+            "max": np.nanmax(marker_velocity),
+        }
+
+    # round & store
+    for k, v in vals.items():
+        row[f"{k}_{marker_name}_velocity"] = round(float(v), ndigits) if np.isfinite(v) else np.nan
