@@ -5,6 +5,7 @@ import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.stats import skew
 from scipy.signal import hilbert, correlate, butter, filtfilt
+import math
 matplotlib.use("TkAgg")
 
 
@@ -384,3 +385,34 @@ def compute_speed(time, xyz):
 
     return speed
 
+def derivative(data, dt):
+    """Return d(data)/dt."""
+    return np.gradient(data, dt, axis=0)
+
+def seconds_to_frames(intervals_s, freq, inclusive_right=False):
+    """
+    Convert a list of (t0, t1) time intervals in seconds to (f0, f1)
+    frame intervals.
+
+    Parameters
+    ----------
+    intervals_s : list[tuple[float, float]]
+        Each tuple is (start_sec, end_sec).
+    freq : float
+        Sampling frequency in Hz (frames per second).
+    inclusive_right : bool, optional
+        If True, make the right boundary inclusive.
+
+    Returns
+    -------
+    list[tuple[int, int]]
+        Each tuple is (start_frame, end_frame).
+    """
+    frames = []
+    for t0, t1 in intervals_s:
+        f0 = math.floor(t0 * freq)          # inclusive left edge
+        f1 = math.ceil(t1 * freq)           # exclusive right edge by default
+        if inclusive_right:
+            f1 += 1
+        frames.append((f0, f1))
+    return frames

@@ -243,6 +243,9 @@ def knee_hip_correlation(knee_angle, hip_angle, kick_intervals, plot=False):
     correlations = []
     lags = []
     for i, (start, end) in enumerate(kick_intervals):
+        if end - start < 3:
+            continue
+
         # Extract the knee and hip angle segments for the current interval
         knee_segment = knee_angle[start:end]
         knee_segment_norm = resample_size(knee_segment, 100)  # Resample to 100 points
