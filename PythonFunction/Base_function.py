@@ -155,16 +155,22 @@ def analyze_intervals_duration(
             amp = float(np.ptp(seg))                 # max - min
             amplitude_per_event.append(amp)
 
+    if not durations_per_event:  # aucune fenêtre valide
+        durations_per_event = [float(0)]
+    if use_distance and not amplitude_per_event:
+        amplitude_per_event = [float(0)]
+
     summary = {
-        "number_of_event"    : len(durations_per_event),
-        "time_in_contact"    : float(np.sum(durations_per_event)),
+        "number_of_event": len(durations_per_event)
+        if durations_per_event[0] != 0 else 0,
+        "time_in_contact": float(np.sum(durations_per_event)),
         "durations_per_event": durations_per_event,
     }
-
     if use_distance:
         summary["amplitude_per_event"] = amplitude_per_event
 
     return summary
+
 
 def plot_time_series(time_vector, title="Time Series Plot", ylabel="Value", **kwargs):
     """

@@ -69,3 +69,17 @@ def cca_first_component_sklearn(X, Y, *, plane="xy", max_iter=500, tol=1e-06):
     angle2D = angle_projected(w1, v1, plane)
 
     return float(rho), w1, v1, angle2D, angle3D
+
+
+def add_correlations_stat(pairs, ndigits, row):
+    results_CCA = {}
+    for name, (A, B) in pairs.items():
+        rho, wA, wB, ang_xy, ang_3d = cca_first_component_sklearn(A, B, plane="xy")
+        results_CCA[name] = dict(rho=rho, angle=ang_xy, angle_3d=ang_3d,
+                                 wA=wA, wB=wB)
+
+    for k, d in results_CCA.items():
+        print(f"{k}: ρ₁ = {d['rho']:.3f}, angleXY = {d['angle']:.1f}°, angle3D = {d['angle_3d']:.1f}°")
+        row[f"{k}_rho"] = round(float(d['rho']), ndigits) if np.isfinite(d['rho']) else np.nan
+        row[f"{k}_angle_xy"] = round(float(d['angle']), ndigits) if np.isfinite(d['angle']) else np.nan
+        row[f"{k}_rho_3d"] = round(float(d['angle_3d']), ndigits) if np.isfinite(d['angle_3d']) else np.nan

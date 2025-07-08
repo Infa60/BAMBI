@@ -442,21 +442,67 @@ def plot_kick_classification_with_bars(knee_angle_d, knee_angle_g, results, fs):
     plt.tight_layout()
     plt.show()
 
-def get_mean_and_std(kicking_cycle_data):
-    # Convert the list of dicts to a DataFrame
-    df_kicking_cycle = pd.DataFrame(kicking_cycle_data)
+def get_mean_and_std(
+    kicking_cycle_data,
+    *,
+    fill_value: float | int = 0.0
+) -> pd.DataFrame:
+    """
+    Aggregate a list of per-kick dictionaries into mean / std statistics.
+    If the list is empty (→ no kicks detected) the function returns a
+    DataFrame filled with *fill_value* instead of raising an error.
 
-    # Compute mean and standard deviation for numeric columns
-    mean_values_kicking = df_kicking_cycle.mean(numeric_only=True)
-    std_values_kicking = df_kicking_cycle.std(numeric_only=True)
+    Parameters
+    ----------
+    kicking_cycle_data : list[dict]
+        One dict per detected kick. Keys are metric names, values numeric.
+    fill_value : float, default 0.0
+        Value used when no kicks are available or when a metric is all-NaN.
 
-    # Combine into a single DataFrame
-    mean_std_kicking_values = pd.DataFrame({
-        "mean": mean_values_kicking,
-        "std": std_values_kicking
-    })
+    Returns
+    -------
+    pd.DataFrame
+        Two columns ("mean", "std") indexed by the expected metric names.
+    """
 
-    return mean_std_kicking_values
+    # ------------------------------------------------------------------
+    # Default numeric metrics expected in every summary
+    # ------------------------------------------------------------------
+    expected_cols = [
+        "flexion_amplitude",
+        "extension_amplitude",
+        "duration",
+        "steepness",
+        "flexion_speed",
+        "extension_speed",
+        "peak_speed",
+    ]
+
+    # ------------------------------------------------------------------
+    # 1) Empty input  ⟹  return zeros immediately
+    # ------------------------------------------------------------------
+    if not kicking_cycle_data:
+        zeros = pd.Series(fill_value, index=expected_cols, dtype=float)
+        return pd.DataFrame({"mean": zeros, "std": zeros})
+
+    # ------------------------------------------------------------------
+    # 2) Normal aggregation path
+    # ------------------------------------------------------------------
+    df = pd.DataFrame(kicking_cycle_data)
+
+    # Ensure every expected column exists and is numeric
+    for col in expected_cols:
+        if col not in df.columns:
+            df[col] = np.nan                        # create missing column
+
+    df[expected_cols] = df[expected_cols].apply(
+        pd.to_numeric, errors="coerce"
+    )
+
+    mean_vals = df[expected_cols].mean().fillna(fill_value)
+    std_vals  = df[expected_cols].std(ddof=1).fillna(fill_value)
+
+    return pd.DataFrame({"mean": mean_vals, "std": std_vals})
 
 def synchro_hip_knee(time_vector, PEL, KNE, SHO, ANK, plot=False):
 

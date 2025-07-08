@@ -24,7 +24,7 @@ matplotlib.use("TkAgg")
 
 # Set path and load .mat file
 path = "/Users/mathieubourgeois/Documents/BAMBI_Data"
-outcome_path = f"{path}/Outcome"
+outcome_path = f"{path}/Outcome_raw"
 result_file = f"{path}/resultat_no_combined.mat"
 anthropo_file = f"{path}/3_months_validity_and_reliability.csv"
 
@@ -51,6 +51,7 @@ data_leg_kick_row = []
 data_leg_flex_add_row = []
 data_ank_mouv_row = []
 data_marker_velocity_row = []
+data_correlation_row = []
 
 
 hip_add_all = []
@@ -77,10 +78,11 @@ leg_kick_path = os.path.join(outcome_path, "leg_kick")
 leg_flex_add_path = os.path.join(outcome_path, "leg_flex_add")
 ank_mouv_path = os.path.join(outcome_path, "ank_mouv")
 marker_velocity_path = os.path.join(outcome_path, "marker_velocity")
+correlation_path = os.path.join(outcome_path, "correlation")
 
 for folder in [
     hand_hand_path, foot_foot_path, hand_foot_path, hand_mouth_path,
-    leg_lift_path, leg_kick_path, leg_flex_add_path, ank_mouv_path
+    leg_lift_path, leg_kick_path, leg_flex_add_path, ank_mouv_path, marker_velocity_path, correlation_path
 ]:
     os.makedirs(folder, exist_ok=True)
 
@@ -117,6 +119,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     leg_flex_add_row = {}
     ank_mouv_row = {}
     marker_velocity_row = {}
+    correlation_row = {}
 
     all_rows = [
         hand_hand_row,
@@ -128,6 +131,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         leg_flex_add_row,
         ank_mouv_row,
         marker_velocity_row,
+        correlation_row,
     ]
 
     # bambiID est défini juste avant
@@ -157,6 +161,12 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     LSHD = results_struct[bambiID]["LSHD"][0, 0]
     RSHD = results_struct[bambiID]["RSHD"][0, 0]
 
+    plot_marker_trajectory_mean(RANK, time_duration, marker_name="RANK", k=1, save_path=bambi_folder, plot_name=bambiID)
+    plot_marker_trajectory_mean(RANK, time_duration, marker_name="LANK", k=1, save_path=bambi_folder, plot_name=bambiID)
+    plot_marker_trajectory_mean(RANK, time_duration, marker_name="RWRA", k=1, save_path=bambi_folder, plot_name=bambiID)
+    plot_marker_trajectory_mean(RANK, time_duration, marker_name="LWRA", k=1, save_path=bambi_folder, plot_name=bambiID)
+
+    ## Canonical Correlation Analysis
     pairs = {
         "RWRA–LANK": (RWRA, LANK),
         "RWRA–RANK": (RWRA, RANK),
@@ -166,15 +176,10 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         "LANK–RANK": (LANK, RANK),
     }
 
-    results_CCA = {}
-    for name, (A, B) in pairs.items():
-        rho, wA, wB, ang_xy, ang_3d = cca_first_component_sklearn(A, B, plane="xy")
-        results_CCA[name] = dict(rho=rho, angle=ang_xy, angle_3d= ang_3d,
-                             wA=wA, wB=wB)
+    add_correlations_stat(pairs=pairs, ndigits=3, row=correlation_row)
 
-    for k, d in results_CCA.items():
-        print(f"{k}: ρ₁ = {d['rho']:.3f}, angleXY = {d['angle']:.1f}°, angle3D = {d['angle_3d']:.1f}°")
 
+    ## Velocity data for marker
     marker_to_velocity_compute = {
         "RWRA":RWRA,
         "LWRA":LWRA,
@@ -384,6 +389,10 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     mean_std_kicking_values_right = get_mean_and_std(kicking_cycle_outcomes_right)
 
     knee_angle_right, hip_angle_right = synchro_hip_knee(time_duration, RPEL, RKNE, RSHO, RANK, plot=False)
+
+    # plot_time_series(knee_angle_right, hip_angle_right=hip_angle_right)
+    # plt.show()
+
     knee_angle_left, hip_angle_left = synchro_hip_knee(time_duration, LPEL, LKNE, LSHO, LANK, plot=False)
 
     mean_corr_right, std_corr_right, mean_lags_right, std_lags_right = knee_hip_correlation(knee_angle_right,
@@ -456,6 +465,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     data_leg_flex_add_row.append(leg_flex_add_row)
     data_ank_mouv_row.append(ank_mouv_row)
     data_marker_velocity_row.append(marker_velocity_row)
+    data_correlation_row.append(correlation_row)
 
 ## Foot foot plot
 plot_mean_pdf_contact (foot_outcomes_total, bambiID_list, 'foot_foot', foot_foot_path, field="durations_per_event",
@@ -506,6 +516,7 @@ data_map = {
     "leg_flex_add": (data_leg_flex_add_row, leg_flex_add_path),
     "ank_mouv":     (data_ank_mouv_row,     ank_mouv_path),
     "marker_velocity": (data_marker_velocity_row, marker_velocity_path),
+    "correlation": (data_correlation_row, correlation_path),
 
 }
 

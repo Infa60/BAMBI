@@ -249,9 +249,9 @@ def plot_ellipsoid_and_points_stickman(
         ]
     )
 
-    x_limits = [np.min(all_points[:, 0]), np.max(all_points[:, 0])]
-    y_limits = [np.min(all_points[:, 1]), np.max(all_points[:, 1])]
-    z_limits = [np.min(all_points[:, 2]), np.max(all_points[:, 2])]
+    x_limits = [np.nanmin(all_points[:, 0]), np.nanmax(all_points[:, 0])]
+    y_limits = [np.nanmin(all_points[:, 1]), np.nanmax(all_points[:, 1])]
+    z_limits = [np.nanmin(all_points[:, 2]), np.nanmax(all_points[:, 2])]
 
     # Calculate the center and maximum radius for axis limits
     x_middle = np.mean(x_limits)
