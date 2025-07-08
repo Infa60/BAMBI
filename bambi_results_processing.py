@@ -164,15 +164,21 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     LSHD = results_struct[bambiID]["LSHD"][0, 0]
     RSHD = results_struct[bambiID]["RSHD"][0, 0]
 
-    marker_for_outside_mean_std = {
+    marker_for_trajectory_outside_mean_std = {
         "RWRA":RWRA,
         "LWRA":LWRA,
         "RANK":RANK,
         "LANK":LANK,
     }
 
-    compute_area_outside_mean_std(markers = marker_for_outside_mean_std, time = time_duration, freq = freq,
-    row = marker_movement_row, win_mult = 2, k = 1, save_path = bambi_folder, plot_name=bambiID, data_type = "Trajectory")
+    compute_area_outside_mean_std(markers = marker_for_trajectory_outside_mean_std, time = time_duration, freq = freq,
+                                  row = marker_movement_row, win_mult = 2, k = 1, save_path = bambi_folder,
+                                  plot_name=bambiID, data_type = "Trajectory")
+
+    compute_area_outside_mean_std(markers = marker_for_trajectory_outside_mean_std, time = time_duration, freq = freq,
+                                  row = marker_movement_row, win_mult = 2, k = 1, save_path = bambi_folder,
+                                  plot_name=bambiID, data_type = "Velocity")
+
 
 
 

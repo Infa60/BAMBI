@@ -97,7 +97,7 @@ def plot_multi_markers_speed_color(
     # --------------------------------------------------------------
     for ax, (name, xyz) in zip(axes, xyz_mm.items()):
         # 1) speed in m/s + low-pass filter
-        speed   = compute_speed(t, xyz)/1000
+        speed   = compute_speed(t, xyz)
         speed_f = butter_lowpass_filter(speed, cutoff, fs, order)
 
         # 2) threshold and gap merging
@@ -193,7 +193,7 @@ def marker_outcome(
         vals = dict(mean=np.nan, std=np.nan, skew=np.nan, max=np.nan)
     else:
         vals = {
-            "mean": np.nanmean(marker_velocity),
+            "mean (m/s)": np.nanmean(marker_velocity),
             "std": np.nanstd(marker_velocity),
             "skew": skew(marker_velocity, nan_policy="omit", bias=False),
             "max": np.nanmax(marker_velocity),
@@ -214,6 +214,7 @@ def plot_marker_trajectory_mean(
     figsize: tuple[int, int] = (10, 9),
     save_path: str | None = None,
     plot_name: str | None = None,
+    data_type: str | None = None,
 ) -> dict[str, dict[str, float]]:
     """
     Plot the three spatial components of a motion-capture marker with their
@@ -304,7 +305,7 @@ def plot_marker_trajectory_mean(
                         where=df[c] < lower, color="green", alpha=0.70)
 
         # Cosmetics
-        ax.set_ylabel(f"Δ {c.split('_')[-1].upper()}")   # show X / Y / Z
+        ax.set_ylabel(f"{c.split('_')[-1].upper()}")   # show X / Y / Z
         ax.grid(True)
         ax.legend(loc="upper right", fontsize="x-small")
 
@@ -315,7 +316,7 @@ def plot_marker_trajectory_mean(
     )
 
     if save_path and plot_name:
-        fname = f"{plot_name}_{marker_name}_outside_mean_std.png"
+        fname = f"{plot_name}_{data_type}_{marker_name}_outside_mean_std.png"
         plt.savefig(os.path.join(save_path, fname), dpi=300)
     plt.close(fig)
 
@@ -379,6 +380,11 @@ def compute_area_outside_mean_std(
 
     for name, data in markers.items():
         # 1) Plot and retrieve per-axis areas
+
+        if data_type == "Velocity":
+            data = derivative(data, 1/freq)
+            data = butter_lowpass_filter(data, cutoff = 6, fs = freq)
+
         per_axis = plot_marker_trajectory_mean(
             data,
             time,
@@ -387,6 +393,7 @@ def compute_area_outside_mean_std(
             k=k,
             save_path=save_path,
             plot_name=plot_name,
+            data_type=data_type,
         )
 
         # 2) Aggregate across the three axes
@@ -412,15 +419,15 @@ def marker_pos_to_jerk(marker_xyz, cutoff, fs):
 
     # Step 2 jerk
     velocity = derivative(marker_xyz, dt)/1000
-    velocity_f = butter_lowpass_filter(velocity, cutoff=6, fs=fs)
+    velocity_f = butter_lowpass_filter(velocity, cutoff=cutoff, fs=fs)
 
     # 2) Accélération
     acceleration = derivative(velocity_f, dt)
-    acceleration_f = butter_lowpass_filter(acceleration, cutoff=6, fs=fs)
+    acceleration_f = butter_lowpass_filter(acceleration, cutoff=cutoff, fs=fs)
 
     # 3) Jerk
     jerk = derivative(acceleration_f, dt)
-    jerk_f = butter_lowpass_filter(jerk, cutoff=6, fs=fs)
+    jerk_f = butter_lowpass_filter(jerk, cutoff=cutoff, fs=fs)
 
     jerk_mag = np.linalg.norm(jerk_f, axis=1)
 

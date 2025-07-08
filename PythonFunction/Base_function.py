@@ -383,7 +383,7 @@ def compute_speed(time, xyz):
     velocity = np.gradient(xyz, axis=0) / dt[:, None]  # numerical derivative
     speed    = np.linalg.norm(velocity, axis=1)      # magnitude of velocity
 
-    return speed
+    return speed/1000
 
 def derivative(data, dt):
     """Return d(data)/dt."""
