@@ -71,7 +71,7 @@ def cca_first_component_sklearn(X, Y, *, plane="xy", max_iter=500, tol=1e-06):
     return float(rho), w1, v1, angle2D, angle3D
 
 
-def add_correlations_stat(pairs, ndigits, row):
+def add_canonical_correlations_stat(pairs, ndigits, row):
     results_CCA = {}
     for name, (A, B) in pairs.items():
         rho, wA, wB, ang_xy, ang_3d = cca_first_component_sklearn(A, B, plane="xy")

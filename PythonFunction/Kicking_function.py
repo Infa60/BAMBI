@@ -274,10 +274,10 @@ def knee_hip_correlation(knee_angle, hip_angle, kick_intervals, plot=False):
     lags = np.array(lags)
 
     # Calculate mean and standard deviation of the correlations and lags
-    mean_corr = np.nanmean(correlations)
-    std_corr = np.nanstd(correlations)
-    mean_lags = np.nanmean(lags)
-    std_lags = np.nanstd(lags)
+    mean_corr = round(np.nanmean(correlations),2)
+    std_corr = round(np.nanstd(correlations),2)
+    mean_lags = round(np.nanmean(lags),2)
+    std_lags = round(np.nanstd(lags),2)
 
     if plot:
 

@@ -311,7 +311,7 @@ def plot_marker_trajectory_mean(
 
     axes[-1].set_xlabel("Time (s)")
     fig.suptitle(
-        f"{marker_name} trajectory – rolling window {win} frames, ±{k}σ",
+        f"{marker_name} {data_type} – rolling window {win} frames, ±{k}σ",
         y=0.97
     )
 
@@ -397,8 +397,8 @@ def compute_area_outside_mean_std(
         )
 
         # 2) Aggregate across the three axes
-        mean_total     = sum(v['mean']     for v in per_axis.values())
-        envelope_total = sum(v['envelope'] for v in per_axis.values())
+        mean_total     = round(sum(v['mean']     for v in per_axis.values()),2)
+        envelope_total = round(sum(v['envelope'] for v in per_axis.values()),2)
 
         results[name] = {
             "mean_total":     mean_total,

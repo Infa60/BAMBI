@@ -145,7 +145,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         row["Total time (minute)"] = total_time_min
 
 
-    # Retrieve joint positions
+    ## Retrieve joint positions
     pos_ankle = results_struct[bambiID]["ankle_pos"][0, 0]
     RANK = results_struct[bambiID]["RANK"][0, 0]
     LANK = results_struct[bambiID]["LANK"][0, 0]
@@ -164,6 +164,8 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     LSHD = results_struct[bambiID]["LSHD"][0, 0]
     RSHD = results_struct[bambiID]["RSHD"][0, 0]
 
+
+    ## Trajectory and velocity outside mean and std
     marker_for_trajectory_outside_mean_std = {
         "RWRA":RWRA,
         "LWRA":LWRA,
@@ -192,7 +194,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         "LANK–RANK": (LANK, RANK),
     }
 
-    add_correlations_stat(pairs=marker_for_correlations, ndigits=3, row=correlation_row)
+    add_canonical_correlations_stat(pairs=marker_for_correlations, ndigits=3, row=correlation_row)
 
 
     ## Marker to analyse

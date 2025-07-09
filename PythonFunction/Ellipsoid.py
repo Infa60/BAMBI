@@ -49,8 +49,8 @@ def ellipsoid_volume_and_points(points, confidence_threshold):
     stats_outcome = {
         "num_points": num_points,
         "num_enclosed": num_enclosed,
-        "percentage_enclosed": percentage_enclosed,
-        "volume_90": volume_90,
+        "percentage_enclosed": round(percentage_enclosed, 3),
+        "volume_90": round(volume_90, 3),
     }
 
     return (
