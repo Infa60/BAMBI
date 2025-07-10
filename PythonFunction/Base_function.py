@@ -9,13 +9,6 @@ import math
 matplotlib.use("TkAgg")
 
 
-def find_index(column_name, column_list):
-    if column_name in column_list:
-        return column_list.index(column_name)
-    else:
-        return None
-
-
 def resample_size(data, target_length):
     """
     Resamples each series of angles to a target length.

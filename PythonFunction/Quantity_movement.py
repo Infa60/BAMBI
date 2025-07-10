@@ -417,7 +417,7 @@ def compute_area_outside_mean_std(
 def marker_pos_to_jerk(marker_xyz, cutoff, fs):
     dt = 1 / fs
 
-    # Step 2 jerk
+    # 1) Velocity
     velocity = derivative(marker_xyz, dt)/1000
     velocity_f = butter_lowpass_filter(velocity, cutoff=cutoff, fs=fs)
 

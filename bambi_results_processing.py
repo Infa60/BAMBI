@@ -91,9 +91,6 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     if results_struct[bambiID]['marker_category'][0][0][0] != "full":
         continue
 
-    # if bambiID != "BAMBI020_3M_Supine1_MC_NDB_A":
-        # continue
-
     print(f"{bambiID} is running")
     bambi_name = bambiID.split("_", 1)[0]
 
@@ -218,7 +215,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         marker_jerk = marker_pos_to_jerk(marker_xyz, cutoff=4, fs=freq)
         marker_outcome(marker_jerk, row = marker_movement_row, marker_name = marker_name, type_value="jerk")
 
-    interval_movement_common_second = plot_multi_markers_speed_color(time=time_duration, fs=freq, thr=0.01, gap_tol=0.5,
+    interval_movement_common_second = plot_multi_markers_speed_color(time=time_duration, fs=freq, thr=0.15, gap_tol=0.5,
                                                               cutoff=6, show_common='intersection', save_path = bambi_folder,
                                                               bambiID=bambiID, RANK=RANK, LANK=LANK, RKNE=RKNE, LKNE=LKNE
                                                               )
@@ -418,10 +415,10 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
     knee_angle_left, hip_angle_left = synchro_hip_knee(time_duration, LPEL, LKNE, LSHO, LANK, plot=False)
 
-    mean_corr_right, std_corr_right, mean_lags_right, std_lags_right = knee_hip_correlation(knee_angle_right,
+    mean_corr_right, std_corr_right, mean_lags_right, std_lags_right = knee_hip_correlation_individual_segment(knee_angle_right,
                                                                                             hip_angle_right,
                                                                                             kick_intervals_right)
-    mean_corr_left, std_corr_left, mean_lags_left, std_lags_left = knee_hip_correlation(knee_angle_left,
+    mean_corr_left, std_corr_left, mean_lags_left, std_lags_left = knee_hip_correlation_individual_segment(knee_angle_left,
                                                                                         hip_angle_left,
                                                                                         kick_intervals_left)
 
@@ -481,22 +478,18 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
 
     ## Correlation beteween hip knee during interval activation
-    mean_corr_right, std_corr_right, mean_lags_right, std_lags_right = knee_hip_correlation(knee_angle_right,
-                                                                                            hip_angle_right,
-                                                                                            interval_movement_common_frame)
-    mean_corr_left, std_corr_left, mean_lags_left, std_lags_left = knee_hip_correlation(knee_angle_left,
-                                                                                        hip_angle_left,
-                                                                                        interval_movement_common_frame)
+    corr_right, p_corr_right, corr_right_lag_s = knee_hip_correlation_concatenate_segment(knee_angle_right, hip_angle_right,
+                                                                      interval_movement_common_frame, freq)
+    corr_left, p_corr_left, corr_left_lag_s = knee_hip_correlation_concatenate_segment(knee_angle_left, hip_angle_left,
+                                                                    interval_movement_common_frame, freq)
 
-    correlation_row["mean_corr_right"] = mean_corr_right
-    correlation_row["std_corr_right"] = std_corr_right
-    correlation_row["mean_lags_right"] = mean_lags_right
-    correlation_row["std_lags_right"] = std_lags_right
+    correlation_row["corr_right_hip_knee_movement"] = corr_left
+    correlation_row["p_value_right_hip_knee_movement"] = p_corr_right
+    correlation_row["lags_right_hip_knee_movement"] = corr_right_lag_s
 
-    correlation_row["mean_corr_left"] = mean_corr_left
-    correlation_row["std_corr_left"] = std_corr_left
-    correlation_row["mean_lags_left"] = mean_lags_left
-    correlation_row["std_lags_left"] = std_lags_left
+    correlation_row["corr_left_hip_knee_movement"] = corr_left
+    correlation_row["p_value_left_hip_knee_movement"] = p_corr_left
+    correlation_row["lags_left_hip_knee_movement"] = corr_left_lag_s
 
     # Add the row to the list
     data_hand_hand_row.append(hand_hand_row)

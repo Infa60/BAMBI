@@ -235,7 +235,7 @@ def kicking(
     return kicking_cycle_data, distance_pelv_ank, kick_intervals
 
 
-def knee_hip_correlation(knee_angle, hip_angle, kick_intervals, plot=False):
+def knee_hip_correlation_individual_segment(knee_angle, hip_angle, kick_intervals, plot=False):
     """
     A lag < 0 means that the hip precedes the knee (the hip “moves” before the knee in the cycle).
     A lag > 0 means that the knee precedes the hip (the knee “moves” before the hip).

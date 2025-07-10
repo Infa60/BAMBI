@@ -3,7 +3,8 @@ from numpy.linalg import svd, eig
 from scipy.spatial.distance import cosine
 from sklearn.cross_decomposition import CCA
 from scipy.stats import pearsonr
-
+from scipy.signal import correlate
+import matplotlib.pyplot as plt
 
 def angle_projected(w, v, plane="xy"):
     """
@@ -83,3 +84,32 @@ def add_canonical_correlations_stat(pairs, ndigits, row):
         row[f"{k}_rho"] = round(float(d['rho']), ndigits) if np.isfinite(d['rho']) else np.nan
         row[f"{k}_angle_xy"] = round(float(d['angle']), ndigits) if np.isfinite(d['angle']) else np.nan
         row[f"{k}_rho_3d"] = round(float(d['angle_3d']), ndigits) if np.isfinite(d['angle_3d']) else np.nan
+
+
+def knee_hip_correlation_concatenate_segment(knee_angle, hip_angle, kick_intervals, fs):
+    """
+    Compute the overall Pearson correlation and optimal lag between knee and hip angles
+    by concatenating all kick intervals.
+
+    A negative lag  → the hip leads the knee.
+    A positive lag  → the knee leads the hip.
+    """
+
+    # 1 ) concatenate all segments
+    knee_concat = np.concatenate([knee_angle[s:e] for s, e in kick_intervals])
+    hip_concat = np.concatenate([hip_angle[s:e] for s, e in kick_intervals])
+
+    # 2 ) correlation and p-value
+    r, p = pearsonr(knee_concat, hip_concat)
+
+    # 3 ) cross-correlation to find optimal lag (optionally normalised)
+    k_z = (knee_concat - knee_concat.mean()) / knee_concat.std(ddof=0)
+    h_z = (hip_concat - hip_concat.mean()) / hip_concat.std(ddof=0)
+    n = len(k_z)
+    xcorr = correlate(k_z, h_z, mode="full")
+    lags = np.arange(-n + 1, n)
+    xcorr /= (n - np.abs(lags))  # normalisation by overlap
+    lag_opt = int(lags[np.argmax(np.abs(xcorr))])
+    lag_s = lag_opt / fs
+
+    return r, p, lag_s
