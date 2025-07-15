@@ -25,7 +25,6 @@ def angle_projected(w, v, plane="xy"):
     return float(np.degrees(np.arccos(cosang)))
 
 
-
 def cca_first_component_sklearn(X, Y, *, plane="xy", max_iter=500, tol=1e-06):
     """
     First-component Canonical Correlation Analysis using scikit-learn.
@@ -79,14 +78,21 @@ def add_canonical_correlations_stat(pairs, ndigits, row):
     results_CCA = {}
     for name, (A, B) in pairs.items():
         rho, wA, wB, ang_xy, ang_3d = cca_first_component_sklearn(A, B, plane="xy")
-        results_CCA[name] = dict(rho=rho, angle=ang_xy, angle_3d=ang_3d,
-                                 wA=wA, wB=wB)
+        results_CCA[name] = dict(rho=rho, angle=ang_xy, angle_3d=ang_3d, wA=wA, wB=wB)
 
     for k, d in results_CCA.items():
         # print(f"{k}: ρ₁ = {d['rho']:.3f}, angleXY = {d['angle']:.1f}°, angle3D = {d['angle_3d']:.1f}°")
-        row[f"{k}_rho"] = round(float(d['rho']), ndigits) if np.isfinite(d['rho']) else np.nan
-        row[f"{k}_angle_xy"] = round(float(d['angle']), ndigits) if np.isfinite(d['angle']) else np.nan
-        row[f"{k}_rho_3d"] = round(float(d['angle_3d']), ndigits) if np.isfinite(d['angle_3d']) else np.nan
+        row[f"{k}_rho"] = (
+            round(float(d["rho"]), ndigits) if np.isfinite(d["rho"]) else np.nan
+        )
+        row[f"{k}_angle_xy"] = (
+            round(float(d["angle"]), ndigits) if np.isfinite(d["angle"]) else np.nan
+        )
+        row[f"{k}_rho_3d"] = (
+            round(float(d["angle_3d"]), ndigits)
+            if np.isfinite(d["angle_3d"])
+            else np.nan
+        )
 
 
 def optimal_lag_crosscorr(sig1, sig2, fs):
@@ -120,7 +126,7 @@ def optimal_lag_crosscorr(sig1, sig2, fs):
     # Full cross-correlation
     xcorr = correlate(sig1_z, sig2_z, mode="full")
     lags = np.arange(-n + 1, n)
-    xcorr /= (n - np.abs(lags))  # normalization by overlap
+    xcorr /= n - np.abs(lags)  # normalization by overlap
     # Optimal lag
     idx_max = np.argmax(np.abs(xcorr))
     lag_samples = lags[idx_max]
@@ -176,33 +182,35 @@ def signal_correlation_concatenate_segments(signal1, signal2, intervals, fs):
     return r, p, lag_seconds
 
 
-def add_velocities_correlations_stat(pairs, time, fs, ndigits, row, kick_intervals=None):
+def add_velocities_correlations_stat(
+    pairs, time, fs, ndigits, row, kick_intervals=None
+):
     """
-        Compute and store correlation statistics (Pearson r, p-value, and optimal lag)
-        for the tangential velocities between all specified pairs of markers.
-        Optionally restricts the analysis to given intervals.
+    Compute and store correlation statistics (Pearson r, p-value, and optimal lag)
+    for the tangential velocities between all specified pairs of markers.
+    Optionally restricts the analysis to given intervals.
 
-        Parameters
-        ----------
-        pairs : dict
-            Dictionary where keys are pair names (e.g., 'knee_hip') and values are tuples
-            of arrays: (marker_A_positions, marker_B_positions), each shape (n_samples, 3).
-        time : array-like
-            1D array of time stamps (seconds) for all samples.
-        fs : float
-            Sampling frequency in Hz.
-        ndigits : int
-            Number of decimal digits to round the results.
-        row : dict
-            Dictionary to which results will be added as new keys.
-        kick_intervals : list of (start, end) tuples, optional
-            List of intervals (in sample indices) where correlation is computed.
-            If None, computes correlation over the whole recording.
+    Parameters
+    ----------
+    pairs : dict
+        Dictionary where keys are pair names (e.g., 'knee_hip') and values are tuples
+        of arrays: (marker_A_positions, marker_B_positions), each shape (n_samples, 3).
+    time : array-like
+        1D array of time stamps (seconds) for all samples.
+    fs : float
+        Sampling frequency in Hz.
+    ndigits : int
+        Number of decimal digits to round the results.
+    row : dict
+        Dictionary to which results will be added as new keys.
+    kick_intervals : list of (start, end) tuples, optional
+        List of intervals (in sample indices) where correlation is computed.
+        If None, computes correlation over the whole recording.
 
-        Returns
-        -------
-        None (results are added in-place to `row`)
-        """
+    Returns
+    -------
+    None (results are added in-place to `row`)
+    """
     results_correlations = {}
     for name, (A, B) in pairs.items():
         A_velocities = compute_speed(time, A)
@@ -210,7 +218,9 @@ def add_velocities_correlations_stat(pairs, time, fs, ndigits, row, kick_interva
 
         if kick_intervals is not None:
             method = "union_movement_marker"
-            r, p_value, lag_s = signal_correlation_concatenate_segments(A_velocities, B_velocities, kick_intervals, fs)
+            r, p_value, lag_s = signal_correlation_concatenate_segments(
+                A_velocities, B_velocities, kick_intervals, fs
+            )
         else:
             method = "all_duration"
             r, p_value = pearsonr(A_velocities, B_velocities)
@@ -219,6 +229,12 @@ def add_velocities_correlations_stat(pairs, time, fs, ndigits, row, kick_interva
         results_correlations[name] = dict(corr=r, p_value=p_value, lag_s=lag_s)
 
     for k, d in results_correlations.items():
-        row[f"{k}_corr_{method}"] = round(float(d['corr']), ndigits) if np.isfinite(d['corr']) else np.nan
-        row[f"{k}_p_value_{method}"] = round(float(d['p_value']), ndigits) if np.isfinite(d['p_value']) else np.nan
-        row[f"{k}_lag_{method}"] = round(float(d['lag_s']), ndigits) if np.isfinite(d['lag_s']) else np.nan
+        row[f"{k}_corr_{method}"] = (
+            round(float(d["corr"]), ndigits) if np.isfinite(d["corr"]) else np.nan
+        )
+        row[f"{k}_p_value_{method}"] = (
+            round(float(d["p_value"]), ndigits) if np.isfinite(d["p_value"]) else np.nan
+        )
+        row[f"{k}_lag_{method}"] = (
+            round(float(d["lag_s"]), ndigits) if np.isfinite(d["lag_s"]) else np.nan
+        )

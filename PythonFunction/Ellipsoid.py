@@ -5,6 +5,7 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.ticker import MultipleLocator
+
 matplotlib.use("TkAgg")
 
 
@@ -65,7 +66,6 @@ def ellipsoid_volume_and_points(points, confidence_threshold):
     )
 
 
-
 def plot_ellipsoid_and_points_stickman(
     point_of_interest,
     RANK,
@@ -110,7 +110,9 @@ def plot_ellipsoid_and_points_stickman(
         threshold,
         stats_outcome,
         points,
-    ) = ellipsoid_volume_and_points(point_of_interest, confidence_threshold = confidence_threshold)
+    ) = ellipsoid_volume_and_points(
+        point_of_interest, confidence_threshold=confidence_threshold
+    )
 
     # Calculate the mean positions for each marker (RANK, LANK, RKNE, etc.)
     mean_RANK = np.nanmean(RANK, axis=0)
@@ -184,8 +186,9 @@ def plot_ellipsoid_and_points_stickman(
     # Plot all stickman segments
     for start, end in stickman_connections:
         p1, p2 = marker_dict[start], marker_dict[end]
-        ax.plot([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], color="black", linewidth=2)
-
+        ax.plot(
+            [p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], color="black", linewidth=2
+        )
 
     # Plot all points inside or outside the ellipsoid, depending on the flag
     if inside_point:
@@ -245,7 +248,7 @@ def plot_ellipsoid_and_points_stickman(
             mean_CSHD,
             mean_FSHD,
             mean_LSHD,
-            mean_RSHD
+            mean_RSHD,
         ]
     )
 

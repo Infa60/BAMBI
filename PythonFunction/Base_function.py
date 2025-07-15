@@ -6,6 +6,7 @@ from scipy.interpolate import interp1d
 from scipy.stats import skew
 from scipy.signal import hilbert, correlate, butter, filtfilt
 import math
+
 matplotlib.use("TkAgg")
 
 
@@ -33,6 +34,7 @@ def resample_size(data, target_length):
 
     return resampled_data
 
+
 def get_threshold_intervals(signal, threshold, mode="above"):
     """
     Detect continuous intervals where signal is above or below a threshold.
@@ -56,7 +58,9 @@ def get_threshold_intervals(signal, threshold, mode="above"):
         condition = signal < threshold
     elif mode == "between":
         if not (isinstance(threshold, (tuple, list)) and len(threshold) == 2):
-            raise ValueError("For 'between' mode, threshold must be a (low, high) tuple.")
+            raise ValueError(
+                "For 'between' mode, threshold must be a (low, high) tuple."
+            )
         low, high = threshold
         condition = (signal > low) & (signal < high)
     else:
@@ -71,10 +75,11 @@ def get_threshold_intervals(signal, threshold, mode="above"):
     if condition[0]:
         start_idxs = np.insert(start_idxs, 0, 0)
     if condition[-1]:
-        end_idxs = np.append(end_idxs, len(signal) -1)
+        end_idxs = np.append(end_idxs, len(signal) - 1)
 
     intervals = list(zip(start_idxs, end_idxs))
     return intervals
+
 
 def intersect_intervals(intervals1, intervals2):
     """
@@ -99,7 +104,7 @@ def analyze_intervals_duration(
     intervals,
     time_vector: np.ndarray,
     distance: np.ndarray | None = None,
-    reverse_from_threshold = None
+    reverse_from_threshold=None,
 ):
     """
     Analyse (start, end) intervals on a time vector.
@@ -130,7 +135,7 @@ def analyze_intervals_duration(
             'amplitude_per_event'
     """
     durations_per_event = []
-    amplitude_per_event = []          # will stay empty if distance is None
+    amplitude_per_event = []  # will stay empty if distance is None
 
     n_samples = len(time_vector)
     use_distance = distance is not None
@@ -146,8 +151,8 @@ def analyze_intervals_duration(
 
         # amplitude if requested
         if use_distance:
-            seg = distance[start : end + 1]          # end inclusive
-            amp = float(np.ptp(seg))                 # max - min
+            seg = distance[start : end + 1]  # end inclusive
+            amp = float(np.ptp(seg))  # max - min
             amplitude_per_event.append(amp)
 
     if not durations_per_event:  # aucune fenêtre valide
@@ -156,17 +161,19 @@ def analyze_intervals_duration(
         amplitude_per_event = [float(0)]
 
     summary = {
-        "number_of_event": len(durations_per_event)
-        if durations_per_event[0] != 0 else 0,
+        "number_of_event": (
+            len(durations_per_event) if durations_per_event[0] != 0 else 0
+        ),
         "time_in_contact": float(np.sum(durations_per_event)),
         "durations_per_event": durations_per_event,
     }
     if use_distance:
         if reverse_from_threshold is not None:
-            summary["amplitude_per_event"] = [reverse_from_threshold - val for val in amplitude_per_event]
+            summary["amplitude_per_event"] = [
+                reverse_from_threshold - val for val in amplitude_per_event
+            ]
         else:
             summary["amplitude_per_event"] = amplitude_per_event
-
 
     return summary
 
@@ -196,10 +203,14 @@ def plot_time_series(time_vector, title="Time Series Plot", ylabel="Value", **kw
         data = np.squeeze(data)
 
         if data.shape[0] != time_vector.shape[0]:
-            raise ValueError(f"Dimension mismatch for '{name}': {data.shape[0]} vs {time_vector.shape[0]}")
+            raise ValueError(
+                f"Dimension mismatch for '{name}': {data.shape[0]} vs {time_vector.shape[0]}"
+            )
 
         # Use dashed line for threshold-like labels
-        linestyle = '--' if 'threshold' in name.lower() or 'thresh' in name.lower() else '-'
+        linestyle = (
+            "--" if "threshold" in name.lower() or "thresh" in name.lower() else "-"
+        )
         plt.plot(time_vector, data, label=name, linestyle=linestyle)
 
     plt.xlabel("Time")
@@ -211,11 +222,15 @@ def plot_time_series(time_vector, title="Time Series Plot", ylabel="Value", **kw
 
 
 def get_leg_and_tibia_length(file_path, bambiID):
-    df = pd.read_csv(file_path, sep=',')
+    df = pd.read_csv(file_path, sep=",")
     df.columns = df.columns.str.strip()  # clean up any whitespace in column names
 
-    leg_length = df[df['Inclusion number'] == bambiID]['TLL'].iloc[0] # 40% of body size
-    tibia_length = df[df['Inclusion number'] == bambiID]['LLL'].iloc[0] # 40% of leg length
+    leg_length = df[df["Inclusion number"] == bambiID]["TLL"].iloc[
+        0
+    ]  # 40% of body size
+    tibia_length = df[df["Inclusion number"] == bambiID]["LLL"].iloc[
+        0
+    ]  # 40% of leg length
 
     return leg_length, tibia_length
 
@@ -237,18 +252,15 @@ def butter_lowpass_filter(data, cutoff, fs, order=2):
     Returns:
         filtered_data : np.ndarray, filtered signal(s), same shape as input.
     """
-    nyq = 0.5 * fs                 # Nyquist frequency
-    normal_cutoff = cutoff / nyq   # Normalized cutoff frequency
-    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    nyq = 0.5 * fs  # Nyquist frequency
+    normal_cutoff = cutoff / nyq  # Normalized cutoff frequency
+    b, a = butter(order, normal_cutoff, btype="low", analog=False)
     filtered_data = filtfilt(b, a, data, axis=0)  # Zero-phase filtering
     return filtered_data
 
+
 def add_summary_stats(
-    dest: dict,
-    prefix: str,
-    values,
-    nan_fill=np.nan,
-    ndigits: int = 2
+    dest: dict, prefix: str, values, nan_fill=np.nan, ndigits: int = 2
 ):
     """
     Append Min, Max, P5, P95, Mean, SD, Skewness to *dest* for the given *values*.
@@ -274,16 +286,17 @@ def add_summary_stats(
     # Remove NaNs for robust stats
     vals = vals[np.isfinite(vals)]
     if vals.size == 0:
-        stats = {k: nan_fill for k in
-                 ("min", "max", "p05", "p95", "mean", "sd", "skew")}
+        stats = {
+            k: nan_fill for k in ("min", "max", "p05", "p95", "mean", "sd", "skew")
+        }
     else:
         stats = {
-            "min" : np.min(vals),
-            "max" : np.max(vals),
-            "p05" : np.percentile(vals, 5),
-            "p95" : np.percentile(vals, 95),
+            "min": np.min(vals),
+            "max": np.max(vals),
+            "p05": np.percentile(vals, 5),
+            "p95": np.percentile(vals, 95),
             "mean": np.mean(vals),
-            "sd"  : np.std(vals, ddof=0),          # population SD
+            "sd": np.std(vals, ddof=0),  # population SD
             "skew": skew(vals, bias=False),
         }
 
@@ -294,13 +307,14 @@ def add_summary_stats(
         else:
             dest[f"{prefix}_{k}"] = nan_fill
 
+
 def add_contact_metrics(
     dest: dict,
     prefix: str,
     durations_per_event,
     amplitude_per_event=None,
     nan_fill=np.nan,
-    ndigits: int = 2
+    ndigits: int = 2,
 ):
     """
     Update *dest* with all metrics for a contact type (left hand-mouth, right
@@ -333,20 +347,22 @@ def add_contact_metrics(
     durs = durs[np.isfinite(durs)]
 
     # Basic event metrics
-    if durs[0]!= 0:
-        dest[f"number_of_{prefix}"]      = int(durs.size)
+    if durs[0] != 0:
+        dest[f"number_of_{prefix}"] = int(durs.size)
     else:
-        dest[f"number_of_{prefix}"]      = 0
+        dest[f"number_of_{prefix}"] = 0
 
-    dest[f"total_time_in_{prefix}"]  = round(float(np.sum(durs)),ndigits) if durs.size else nan_fill
+    dest[f"total_time_in_{prefix}"] = (
+        round(float(np.sum(durs)), ndigits) if durs.size else nan_fill
+    )
 
     # Stats on durations
     add_summary_stats(
-        dest   = dest,
-        prefix = f"time_{prefix}",
-        values = durs,
-        nan_fill = nan_fill,
-        ndigits = ndigits
+        dest=dest,
+        prefix=f"time_{prefix}",
+        values=durs,
+        nan_fill=nan_fill,
+        ndigits=ndigits,
     )
 
     # Stats on amplitude (optional)
@@ -354,11 +370,11 @@ def add_contact_metrics(
         amps = np.asarray(amplitude_per_event, dtype=float)
         amps = amps[np.isfinite(amps)]
         add_summary_stats(
-            dest   = dest,
-            prefix = f"distance_{prefix}",
-            values = amps,
-            nan_fill = nan_fill,
-            ndigits = ndigits
+            dest=dest,
+            prefix=f"distance_{prefix}",
+            values=amps,
+            nan_fill=nan_fill,
+            ndigits=ndigits,
         )
 
 
@@ -379,17 +395,19 @@ def compute_speed(time, xyz):
         Speed (m/s) at each time step.
     """
     time = np.asarray(time)
-    xyz  = np.asarray(xyz)
+    xyz = np.asarray(xyz)
 
-    dt       = np.gradient(time)                     # Δt between samples
+    dt = np.gradient(time)  # Δt between samples
     velocity = np.gradient(xyz, axis=0) / dt[:, None]  # numerical derivative
-    speed    = np.linalg.norm(velocity, axis=1)      # magnitude of velocity
+    speed = np.linalg.norm(velocity, axis=1)  # magnitude of velocity
 
-    return speed/1000
+    return speed / 1000
+
 
 def derivative(data, dt):
     """Return d(data)/dt."""
     return np.gradient(data, dt, axis=0)
+
 
 def seconds_to_frames(intervals_s, freq, inclusive_right=False):
     """
@@ -412,8 +430,8 @@ def seconds_to_frames(intervals_s, freq, inclusive_right=False):
     """
     frames = []
     for t0, t1 in intervals_s:
-        f0 = math.floor(t0 * freq)          # inclusive left edge
-        f1 = math.ceil(t1 * freq)           # exclusive right edge by default
+        f0 = math.floor(t0 * freq)  # inclusive left edge
+        f1 = math.ceil(t1 * freq)  # exclusive right edge by default
         if inclusive_right:
             f1 += 1
         # On ignore les intervalles trop courts

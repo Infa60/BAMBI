@@ -71,7 +71,7 @@ bambiID_list = results_struct.dtype.names  # All Bambi IDs
 for i, bambiID in enumerate(results_struct.dtype.names):
 
     print(f"{bambiID} is running")
-    print(results_struct[bambiID]['marker_category'][0][0][0])
+    print(results_struct[bambiID]["marker_category"][0][0][0])
 
     bambi_name = bambiID.split("_", 1)[0]
 
@@ -120,7 +120,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     # Detect extension peaks
     peaks, _ = find_peaks(
         knee_angle_filt,
-        prominence=0.01 * (np.max(knee_angle_filt) - np.min(knee_angle_filt))
+        prominence=0.01 * (np.max(knee_angle_filt) - np.min(knee_angle_filt)),
     )
 
     # Interactive labeling
@@ -128,5 +128,5 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         knee_angle_filt,
         peaks,
         out_path=outcome_path,  # CSV will be saved automatically here
-        fs=freq
+        fs=freq,
     )
