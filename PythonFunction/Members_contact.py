@@ -26,7 +26,8 @@ def distance_foot_foot(LANK, RANK, LKNE, RKNE, threshold_ankle, threshold_knee, 
     plantar_plantar_contact_intervals = intersect_intervals(knee_knee_interval, foot_foot_interval)
 
     # 4.1. Analyze timing and duration of foot foot contact intervals
-    foot_foot_contact_outcomes = analyze_intervals_duration(foot_foot_interval, time_vector, distance_foot_foot)
+    foot_foot_contact_outcomes = analyze_intervals_duration(foot_foot_interval, time_vector, distance_foot_foot,
+                                                            reverse_from_threshold = threshold_ankle)
 
     # 4.2. Analyze timing and duration of plantar plantar contact intervals
     plantar_plantar_contact_outcomes = analyze_intervals_duration(plantar_plantar_contact_intervals, time_vector)
@@ -67,7 +68,8 @@ def distance_hand_hand(LWRA, RWRA, threshold, time_vector, folder_outcome, plot_
     hand_hand_interval = get_threshold_intervals(distance_hand_hand, threshold, "below")
 
     # 3. Analyze duration and count of close-contact events
-    hand_hand_contact_outcomes = analyze_intervals_duration(hand_hand_interval, time_vector, distance_hand_hand)
+    hand_hand_contact_outcomes = analyze_intervals_duration(hand_hand_interval, time_vector, distance_hand_hand,
+                                                            reverse_from_threshold = threshold)
 
     # 4. Optional plot
     if plot:
@@ -142,7 +144,7 @@ def plot_mean_pdf_contact(
         plot_name,
         folder_save_path,
         field="durations_per_event",
-        grid_min=0.0,
+        grid_min=None,
         grid_max=None,            # if None, auto-compute from data
         grid_points=500,
         show_std=True,
@@ -172,6 +174,16 @@ def plot_mean_pdf_contact(
         if all_vals.size == 0:
             raise ValueError(f"No valid data for field '{field}' – cannot determine grid_max.")
         grid_max = all_vals.max()
+
+    explicit_min = grid_min is not None
+
+    # auto-compute grid_min if needed
+    if not explicit_min:
+        all_vals = np.hstack([o.get(field, []) for o in outcomes_total], dtype=float)
+        all_vals = all_vals[np.isfinite(all_vals)]
+        if all_vals.size == 0:
+            raise ValueError(f"No valid data for field '{field}' – cannot determine grid_min.")
+        grid_min = all_vals.min()
 
     # choose labels
     if field == "durations_per_event":
@@ -218,12 +230,12 @@ def plot_mean_pdf_contact(
     upper    = mean_pdf + std_pdf
 
     # invert axis & curves if grid_max was explicit
-    if explicit_max:
-        grid      = (grid_max - grid)[::-1]
-        mean_pdf  = mean_pdf[::-1]
-        lower     = lower[::-1]
-        upper     = upper[::-1]
-        kdes      = kdes[:, ::-1]
+    # if explicit_max:
+    #    grid      = (grid_max - grid)[::-1]
+    #    mean_pdf  = mean_pdf[::-1]
+    #    lower     = lower[::-1]
+    #    upper     = upper[::-1]
+    #    kdes      = kdes[:, ::-1]
 
     # append overall stats
     stats.append(["Total Mean", skew(mean_pdf), kurtosis(mean_pdf)])

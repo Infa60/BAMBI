@@ -99,6 +99,7 @@ def analyze_intervals_duration(
     intervals,
     time_vector: np.ndarray,
     distance: np.ndarray | None = None,
+    reverse_from_threshold = None
 ):
     """
     Analyse (start, end) intervals on a time vector.
@@ -161,7 +162,11 @@ def analyze_intervals_duration(
         "durations_per_event": durations_per_event,
     }
     if use_distance:
-        summary["amplitude_per_event"] = amplitude_per_event
+        if reverse_from_threshold is not None:
+            summary["amplitude_per_event"] = [reverse_from_threshold - val for val in amplitude_per_event]
+        else:
+            summary["amplitude_per_event"] = amplitude_per_event
+
 
     return summary
 
@@ -328,7 +333,11 @@ def add_contact_metrics(
     durs = durs[np.isfinite(durs)]
 
     # Basic event metrics
-    dest[f"number_of_{prefix}"]      = int(durs.size)
+    if durs[0]!= 0:
+        dest[f"number_of_{prefix}"]      = int(durs.size)
+    else:
+        dest[f"number_of_{prefix}"]      = 0
+
     dest[f"total_time_in_{prefix}"]  = round(float(np.sum(durs)),ndigits) if durs.size else nan_fill
 
     # Stats on durations
@@ -407,5 +416,7 @@ def seconds_to_frames(intervals_s, freq, inclusive_right=False):
         f1 = math.ceil(t1 * freq)           # exclusive right edge by default
         if inclusive_right:
             f1 += 1
-        frames.append((f0, f1))
+        # On ignore les intervalles trop courts
+        if (f1 - f0) >= 3:
+            frames.append((f0, f1))
     return frames

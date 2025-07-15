@@ -182,13 +182,13 @@ def plot_mean_pdf_stat(
     plt.close()
 
 
-def ankle_high(ankle_marker, pelvis_marker, time_vector, leg_length, high_threshold,
+def ankle_high(ankle_marker, pelvis_marker, ankle_marker_world, time_vector, leg_length, high_threshold,
                max_flexion, folder_outcome, plot_name, plot = False):
 
     thigh_proportion = 55
     thigh_length = leg_length * thigh_proportion/100
 
-    ankle_high_from_ground = ankle_marker[:, 2]
+    ankle_high_from_ground = ankle_marker_world[:, 2]
 
     range_extension = (np.sqrt(thigh_length**2 + (leg_length-thigh_length)**2 - 2 * thigh_length * (leg_length-thigh_length) * np.cos(np.radians(180-max_flexion))))  # add *0.9
 

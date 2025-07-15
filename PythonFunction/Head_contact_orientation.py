@@ -89,8 +89,10 @@ def distance_hand_mouth(LWRA, RWRA, CSHD, FSHD, LSHD, RSHD, threshold, time_vect
     handL_mouth_interval = get_threshold_intervals(distance_handL_mouth, threshold, "below")
 
     # 3. Analyze duration and count of close-contact events
-    R_hand_contact = analyze_intervals_duration(handR_mouth_interval, time_vector, distance_handR_mouth)
-    L_hand_contact = analyze_intervals_duration(handL_mouth_interval, time_vector, distance_handL_mouth)
+    R_hand_contact = analyze_intervals_duration(handR_mouth_interval, time_vector, distance_handR_mouth,
+                                                            reverse_from_threshold = threshold)
+    L_hand_contact = analyze_intervals_duration(handL_mouth_interval, time_vector, distance_handL_mouth,
+                                                            reverse_from_threshold = threshold)
 
     # 4. Optional plot
     if plot:

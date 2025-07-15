@@ -25,7 +25,7 @@ matplotlib.use("TkAgg")
 # Set path and load .mat file
 path = "/Users/mathieubourgeois/Documents/BAMBI_Data"
 outcome_path = f"{path}/Outcome_raw_pelvis_frame"
-result_file = f"{path}/resultat_no_combined_pelvis_frame.mat"
+result_file = f"{path}/resultats.mat"
 anthropo_file = f"{path}/3_months_validity_and_reliability.csv"
 
 data = scipy.io.loadmat(result_file)
@@ -90,6 +90,9 @@ for folder in [
 for i, bambiID in enumerate(results_struct.dtype.names):
     if results_struct[bambiID]['marker_category'][0][0][0] != "full":
         continue
+
+    #if bambiID != "BAMBI004_3M_Supine1_LH":
+    #    continue
 
     print(f"{bambiID} is running")
     bambi_name = bambiID.split("_", 1)[0]
@@ -161,6 +164,8 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     LSHD = results_struct[bambiID]["LSHD"][0, 0]
     RSHD = results_struct[bambiID]["RSHD"][0, 0]
 
+    RANK_global = results_struct[bambiID]["RANK_global_frame"][0, 0]
+    LANK_global = results_struct[bambiID]["LANK_global_frame"][0, 0]
 
     ## Trajectory and velocity outside mean and std
     marker_for_trajectory_outside_mean_std = {
@@ -268,8 +273,8 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
 
     ## Leg lifting
-    right_lift_with_leg_extend, distance_pelv_ank_right = ankle_high(RANK, RPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=ankle_high_treshold, max_flexion=45, folder_outcome=bambi_folder, plot_name=f"{bambiID}_Right", plot=True)
-    left_lift_with_leg_extend, distance_pelv_ank_left = ankle_high(LANK, LPEL, time_vector=time_duration, leg_length=leg_length, high_threshold=ankle_high_treshold, max_flexion=45, folder_outcome=bambi_folder, plot_name=f"{bambiID}_Left", plot=True)
+    right_lift_with_leg_extend, distance_pelv_ank_right = ankle_high(RANK, RPEL, RANK_global, time_vector=time_duration, leg_length=leg_length, high_threshold=ankle_high_treshold, max_flexion=45, folder_outcome=bambi_folder, plot_name=f"{bambiID}_Right", plot=True)
+    left_lift_with_leg_extend, distance_pelv_ank_left = ankle_high(LANK, LPEL, LANK_global, time_vector=time_duration, leg_length=leg_length, high_threshold=ankle_high_treshold, max_flexion=45, folder_outcome=bambi_folder, plot_name=f"{bambiID}_Left", plot=True)
     add_contact_metrics(
         dest=leg_lift_row,
         prefix="right_lift_with_leg_extend",
@@ -478,9 +483,9 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
 
     ## Correlation beteween hip knee during interval activation
-    corr_right, p_corr_right, corr_right_lag_s = knee_hip_correlation_concatenate_segment(knee_angle_right, hip_angle_right,
+    corr_right, p_corr_right, corr_right_lag_s = signal_correlation_concatenate_segments(knee_angle_right, hip_angle_right,
                                                                       interval_movement_common_frame, freq)
-    corr_left, p_corr_left, corr_left_lag_s = knee_hip_correlation_concatenate_segment(knee_angle_left, hip_angle_left,
+    corr_left, p_corr_left, corr_left_lag_s = signal_correlation_concatenate_segments(knee_angle_left, hip_angle_left,
                                                                     interval_movement_common_frame, freq)
 
     correlation_row["corr_right_hip_knee_movement"] = corr_left
@@ -490,6 +495,18 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     correlation_row["corr_left_hip_knee_movement"] = corr_left
     correlation_row["p_value_left_hip_knee_movement"] = p_corr_left
     correlation_row["lags_left_hip_knee_movement"] = corr_left_lag_s
+
+    interval_movement_union_second = plot_multi_markers_speed_color(time=time_duration, fs=freq, thr=0.15, gap_tol=0.5,
+                                                              cutoff=6, show_common='union', save_path = bambi_folder,
+                                                              bambiID=bambiID, RANK=RANK, LANK=LANK, RWRA=RWRA, LKNE=LWRA
+                                                              )
+    interval_movement_union_frame = seconds_to_frames(interval_movement_union_second, freq)
+
+    add_velocities_correlations_stat(marker_for_correlations, time=time_duration, fs=freq, ndigits=2,
+                                     row=correlation_row, kick_intervals=interval_movement_union_frame)
+
+    add_velocities_correlations_stat(marker_for_correlations, time=time_duration, fs=freq, ndigits=2,
+                                     row=correlation_row, kick_intervals=None)
 
     # Add the row to the list
     data_hand_hand_row.append(hand_hand_row)
@@ -507,23 +524,23 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 plot_mean_pdf_contact (foot_outcomes_total, bambiID_list, 'foot_foot', foot_foot_path, field="durations_per_event",
         grid_min=0.0, grid_max=None, grid_points=500)
 plot_mean_pdf_contact (foot_outcomes_total, bambiID_list, 'foot_foot', foot_foot_path, field="amplitude_per_event",
-        grid_min=0.0, grid_max=foot_foot_threshold, grid_points=500)
+        grid_min=None, grid_max=foot_foot_threshold, grid_points=500)
 
 ## Hand hand plot
 plot_mean_pdf_contact (hand_outcomes_total, bambiID_list, 'hand_hand', hand_hand_path, field="durations_per_event",
         grid_min=0.0, grid_max=None, grid_points=500)
 plot_mean_pdf_contact (hand_outcomes_total, bambiID_list, 'hand_hand', hand_hand_path, field="amplitude_per_event",
-        grid_min=0.0, grid_max=hand_hand_threshold, grid_points=500)
+        grid_min=None, grid_max=hand_hand_threshold, grid_points=500)
 
 ## Hand mouth plot
 plot_mean_pdf_contact (mouth_handR_outcomes_total, bambiID_list, 'mouth_hand_R', hand_mouth_path, field="durations_per_event",
         grid_min=0.0, grid_max=None, grid_points=500)
 plot_mean_pdf_contact (mouth_handR_outcomes_total, bambiID_list, 'mouth_hand_R', hand_mouth_path, field="amplitude_per_event",
-        grid_min=0.0, grid_max=hand_mouth_threshold, grid_points=500)
+        grid_min=None, grid_max=hand_mouth_threshold, grid_points=500)
 plot_mean_pdf_contact (mouth_handL_outcomes_total, bambiID_list, 'mouth_hand_L', hand_mouth_path, field="durations_per_event",
         grid_min=0.0, grid_max=None, grid_points=500)
 plot_mean_pdf_contact (mouth_handL_outcomes_total, bambiID_list, 'mouth_hand_L', hand_mouth_path, field="amplitude_per_event",
-        grid_min=0.0, grid_max=hand_mouth_threshold, grid_points=500)
+        grid_min=None, grid_max=hand_mouth_threshold, grid_points=500)
 
 ## Leg lift plot
 plot_mean_pdf_contact (legR_lift_outcomes_total, bambiID_list, 'leg_lift_R', leg_lift_path, field="durations_per_event",

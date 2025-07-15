@@ -6,6 +6,9 @@ from scipy.stats import pearsonr
 from scipy.signal import correlate
 import matplotlib.pyplot as plt
 
+from PythonFunction.Base_function import compute_speed
+
+
 def angle_projected(w, v, plane="xy"):
     """
     2-D angle (deg) between two 3-D vectors projected onto a plane.
@@ -80,36 +83,142 @@ def add_canonical_correlations_stat(pairs, ndigits, row):
                                  wA=wA, wB=wB)
 
     for k, d in results_CCA.items():
-        print(f"{k}: ρ₁ = {d['rho']:.3f}, angleXY = {d['angle']:.1f}°, angle3D = {d['angle_3d']:.1f}°")
+        # print(f"{k}: ρ₁ = {d['rho']:.3f}, angleXY = {d['angle']:.1f}°, angle3D = {d['angle_3d']:.1f}°")
         row[f"{k}_rho"] = round(float(d['rho']), ndigits) if np.isfinite(d['rho']) else np.nan
         row[f"{k}_angle_xy"] = round(float(d['angle']), ndigits) if np.isfinite(d['angle']) else np.nan
         row[f"{k}_rho_3d"] = round(float(d['angle_3d']), ndigits) if np.isfinite(d['angle_3d']) else np.nan
 
 
-def knee_hip_correlation_concatenate_segment(knee_angle, hip_angle, kick_intervals, fs):
+def optimal_lag_crosscorr(sig1, sig2, fs):
     """
-    Compute the overall Pearson correlation and optimal lag between knee and hip angles
-    by concatenating all kick intervals.
+    Compute the optimal lag between two signals using normalized cross-correlation.
 
-    A negative lag  → the hip leads the knee.
-    A positive lag  → the knee leads the hip.
+    Parameters
+    ----------
+    sig1 : array-like
+        First 1D signal.
+    sig2 : array-like
+        Second 1D signal, same length as sig1.
+    fs : float
+        Sampling frequency in Hz.
+
+    Returns
+    -------
+    lag_samples : int
+        Optimal lag in samples (positive means sig1 leads sig2).
+    lag_seconds : float
+        Optimal lag in seconds.
+    max_corr : float
+        Maximum (absolute) normalized cross-correlation value.
     """
-
-    # 1 ) concatenate all segments
-    knee_concat = np.concatenate([knee_angle[s:e] for s, e in kick_intervals])
-    hip_concat = np.concatenate([hip_angle[s:e] for s, e in kick_intervals])
-
-    # 2 ) correlation and p-value
-    r, p = pearsonr(knee_concat, hip_concat)
-
-    # 3 ) cross-correlation to find optimal lag (optionally normalised)
-    k_z = (knee_concat - knee_concat.mean()) / knee_concat.std(ddof=0)
-    h_z = (hip_concat - hip_concat.mean()) / hip_concat.std(ddof=0)
-    n = len(k_z)
-    xcorr = correlate(k_z, h_z, mode="full")
+    sig1 = np.asarray(sig1)
+    sig2 = np.asarray(sig2)
+    n = len(sig1)
+    # Z-score normalization
+    sig1_z = (sig1 - sig1.mean()) / sig1.std(ddof=0)
+    sig2_z = (sig2 - sig2.mean()) / sig2.std(ddof=0)
+    # Full cross-correlation
+    xcorr = correlate(sig1_z, sig2_z, mode="full")
     lags = np.arange(-n + 1, n)
-    xcorr /= (n - np.abs(lags))  # normalisation by overlap
-    lag_opt = int(lags[np.argmax(np.abs(xcorr))])
-    lag_s = lag_opt / fs
+    xcorr /= (n - np.abs(lags))  # normalization by overlap
+    # Optimal lag
+    idx_max = np.argmax(np.abs(xcorr))
+    lag_samples = lags[idx_max]
+    lag_seconds = lag_samples / fs
+    max_corr = xcorr[idx_max]
+    return lag_seconds, max_corr
 
-    return r, p, lag_s
+
+def signal_correlation_concatenate_segments(signal1, signal2, intervals, fs):
+    """
+    Compute the overall Pearson correlation and optimal lag between two signals
+    by concatenating all specified intervals.
+
+    Parameters
+    ----------
+    signal1 : array-like
+        First 1D signal (e.g., joint angle, velocity, etc.).
+    signal2 : array-like
+        Second 1D signal, same length as signal1.
+    intervals : list of (start, end) tuples
+        List of intervals (start_idx, end_idx) to concatenate.
+        Intervals should be in sample indices (Python-style: [start, end)).
+    fs : float
+        Sampling frequency in Hz.
+
+    Returns
+    -------
+    r : float
+        Pearson correlation coefficient for concatenated segments.
+    p : float
+        Two-tailed p-value.
+    lag_s : float
+        Optimal lag in seconds (positive means signal1 leads signal2).
+
+    Notes
+    -----
+    If `intervals` is empty, returns np.nan for all outputs.
+
+    """
+    if not intervals:
+        return np.nan, np.nan, np.nan
+
+    # 1 ) Concatenate all segments
+    sig1_concat = np.concatenate([signal1[s:e] for s, e in intervals])
+    sig2_concat = np.concatenate([signal2[s:e] for s, e in intervals])
+
+    # 2 ) Pearson correlation
+    r, p = pearsonr(sig1_concat, sig2_concat)
+
+    # 3 ) Cross-correlation to find optimal lag (normalized)
+    lag_seconds, max_corr = optimal_lag_crosscorr(sig1_concat, sig2_concat, fs)
+
+    return r, p, lag_seconds
+
+
+def add_velocities_correlations_stat(pairs, time, fs, ndigits, row, kick_intervals=None):
+    """
+        Compute and store correlation statistics (Pearson r, p-value, and optimal lag)
+        for the tangential velocities between all specified pairs of markers.
+        Optionally restricts the analysis to given intervals.
+
+        Parameters
+        ----------
+        pairs : dict
+            Dictionary where keys are pair names (e.g., 'knee_hip') and values are tuples
+            of arrays: (marker_A_positions, marker_B_positions), each shape (n_samples, 3).
+        time : array-like
+            1D array of time stamps (seconds) for all samples.
+        fs : float
+            Sampling frequency in Hz.
+        ndigits : int
+            Number of decimal digits to round the results.
+        row : dict
+            Dictionary to which results will be added as new keys.
+        kick_intervals : list of (start, end) tuples, optional
+            List of intervals (in sample indices) where correlation is computed.
+            If None, computes correlation over the whole recording.
+
+        Returns
+        -------
+        None (results are added in-place to `row`)
+        """
+    results_correlations = {}
+    for name, (A, B) in pairs.items():
+        A_velocities = compute_speed(time, A)
+        B_velocities = compute_speed(time, B)
+
+        if kick_intervals is not None:
+            method = "union_movement_marker"
+            r, p_value, lag_s = signal_correlation_concatenate_segments(A_velocities, B_velocities, kick_intervals, fs)
+        else:
+            method = "all_duration"
+            r, p_value = pearsonr(A_velocities, B_velocities)
+            lag_s, max_corr = optimal_lag_crosscorr(A_velocities, B_velocities, fs)
+
+        results_correlations[name] = dict(corr=r, p_value=p_value, lag_s=lag_s)
+
+    for k, d in results_correlations.items():
+        row[f"{k}_corr_{method}"] = round(float(d['corr']), ndigits) if np.isfinite(d['corr']) else np.nan
+        row[f"{k}_p_value_{method}"] = round(float(d['p_value']), ndigits) if np.isfinite(d['p_value']) else np.nan
+        row[f"{k}_lag_{method}"] = round(float(d['lag_s']), ndigits) if np.isfinite(d['lag_s']) else np.nan
