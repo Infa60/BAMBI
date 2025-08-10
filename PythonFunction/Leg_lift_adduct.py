@@ -237,7 +237,7 @@ def ankle_high(
 
     if plot:
         plt.figure(figsize=(12, 4))
-        plt.plot(time_vector, ankle_high_from_ground, label="Ankle", color="blue")
+        plt.plot(time_vector, ankle_high_from_ground, label="Ankle high (mm)", color="blue")
         plt.plot(
             time_vector, distance_pelv_ank, label="Distance Pelvis Ankle", color="red"
         )

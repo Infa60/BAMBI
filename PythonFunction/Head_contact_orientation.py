@@ -5,11 +5,8 @@ import matplotlib
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation
 from scipy.spatial.transform import Rotation as R
-from PythonFunction.Base_function import (
-    get_threshold_intervals,
-    analyze_intervals_duration,
-    plot_time_series,
-)
+from PythonFunction.Base_function import *
+from PythonFunction.Members_contact import *
 
 matplotlib.use("TkAgg")
 
@@ -88,6 +85,7 @@ def distance_hand_mouth(
     time_vector,
     folder_outcome,
     plot_name,
+    bambi_indiv_interval,
     plot=False,
 ):
     """
@@ -112,6 +110,10 @@ def distance_hand_mouth(
     handL_mouth_interval = get_threshold_intervals(
         distance_handL_mouth, threshold, "below"
     )
+
+    add_in_mat_file_interval(handL_mouth_interval,"handL_mouth", bambi_indiv_interval, distance_handL_mouth)
+    add_in_mat_file_interval(handR_mouth_interval,"handR_mouth", bambi_indiv_interval, distance_handR_mouth)
+
 
     # 3. Analyze duration and count of close-contact events
     R_hand_contact = analyze_intervals_duration(

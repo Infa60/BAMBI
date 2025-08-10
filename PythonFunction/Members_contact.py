@@ -15,6 +15,7 @@ def distance_foot_foot(
     time_vector,
     folder_outcome,
     plot_name,
+    bambi_indiv_interval,
     plot=False,
 ):
     """
@@ -42,6 +43,9 @@ def distance_foot_foot(
     plantar_plantar_contact_intervals = intersect_intervals(
         knee_knee_interval, foot_foot_interval
     )
+
+    add_in_mat_file_interval(foot_foot_interval,"foot_foot_and_knee_knee", bambi_indiv_interval, distance_foot_foot, distance_knee_knee)
+
 
     # 4.1. Analyze timing and duration of foot foot contact intervals
     foot_foot_contact_outcomes = analyze_intervals_duration(
@@ -83,7 +87,7 @@ def distance_foot_foot(
 
 
 def distance_hand_hand(
-    LWRA, RWRA, threshold, time_vector, folder_outcome, plot_name, plot=False
+    LWRA, RWRA, threshold, time_vector, folder_outcome, plot_name, bambi_indiv_interval, plot=False
 ):
     """
     Analyze hand-to-hand proximity events.
@@ -97,6 +101,8 @@ def distance_hand_hand(
 
     # 2. Detect intervals where hands are close (below threshold)
     hand_hand_interval = get_threshold_intervals(distance_hand_hand, threshold, "below")
+
+    add_in_mat_file_interval(hand_hand_interval,"hand_hand", bambi_indiv_interval, distance_hand_hand)
 
     # 3. Analyze duration and count of close-contact events
     hand_hand_contact_outcomes = analyze_intervals_duration(
@@ -131,6 +137,7 @@ def distance_hand_foot(
     time_vector,
     folder_outcome,
     plot_name,
+    bambi_indiv_interval,
     plot=False,
 ):
     """
@@ -163,6 +170,12 @@ def distance_hand_foot(
 
     ipsilateral_intervals = handR_footR_interval + handL_footL_interval
     contralateral_intervals = handR_footL_interval + handL_footR_interval
+
+    add_in_mat_file_interval(handL_footL_interval,"handL_footL", bambi_indiv_interval, distance_handL_footL)
+    add_in_mat_file_interval(handL_footR_interval,"handL_footR", bambi_indiv_interval, distance_handL_footR)
+    add_in_mat_file_interval(handR_footR_interval,"handR_footR", bambi_indiv_interval, distance_handR_footR)
+    add_in_mat_file_interval(handR_footL_interval,"handR_footL", bambi_indiv_interval, distance_handR_footL)
+
 
     # 3. Analyze duration and count of each contact type
     handR_footR_interval_contact_outcomes = analyze_intervals_duration(
@@ -362,3 +375,25 @@ def plot_mean_pdf_contact(
 
     print(f"Figure saved → {fig_path}")
     print(f"CSV saved    → {csv_path}")
+
+
+def add_in_mat_file_interval(intervals, contact_name, store, distance1, distance2=None):
+    """
+    Store for each interval: start index, end index, mean(distance1), mean(distance2 or NaN).
+    - intervals : list of (start, end) in Python convention [start, end) (0-based, end exclusive)
+    - store     : dict to later pass to savemat
+    """
+    n = len(intervals)
+    arr = np.full((n, 4), np.nan, dtype=float)  # columns: [start, end, mean_d1, mean_d2]
+
+    for i, (s, e) in enumerate(intervals):
+        m1 = float(np.mean(distance1[s:e])) if e > s else np.nan
+        m2 = float(np.mean(distance2[s:e])) if (distance2 is not None and e > s) else np.nan
+
+        arr[i, 0] = int(s)  # start index
+        arr[i, 1] = int(e)  # end index
+        arr[i, 2] = round(m1, 3)      # mean distance1
+        arr[i, 3] = round(m2, 3)      # mean distance2 or NaN
+
+    store[contact_name] = arr
+    return store

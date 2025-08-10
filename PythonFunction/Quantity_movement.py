@@ -100,7 +100,7 @@ def plot_multi_markers_speed_color(
     # --------------------------------------------------------------
     for ax, (name, xyz) in zip(axes, xyz_mm.items()):
         # 1) speed in m/s + low-pass filter
-        speed = compute_speed(t, xyz)
+        speed = compute_velocity(t, xyz) / 1000
         speed_f = butter_lowpass_filter(speed, cutoff, fs, order)
 
         # 2) threshold and gap merging
@@ -218,11 +218,19 @@ def marker_outcome(
     type_value: str,
     ndigits: int = 2,
 ):
+    if type_value == "velocity":
+        unit = "(m/s)"
+    elif type_value == "acceleration":
+        unit = "(m/s²)"
+    elif type_value == "jerk":
+        unit = "(m/s³)"
+
     if marker_velocity.size == 0:
         vals = dict(mean=np.nan, std=np.nan, skew=np.nan, max=np.nan)
     else:
         vals = {
-            "mean (m/s)": np.nanmean(marker_velocity),
+            "min": np.nanmin(marker_velocity),
+            f"mean ({unit})": np.nanmean(marker_velocity),
             "std": np.nanstd(marker_velocity),
             "skew": skew(marker_velocity, nan_policy="omit", bias=False),
             "max": np.nanmax(marker_velocity),
@@ -302,7 +310,10 @@ def plot_marker_trajectory_mean(
         area_env = np.nansum(overshoot) * dt
 
         axis_key = c.split("_")[-1]  # "x" | "y" | "z"
-        areas[axis_key] = {"mean": area_mean, "envelope": area_env}
+        ## Normalize by duration
+        areas[axis_key] = {"mean": area_mean/time[-1], "envelope": area_env/time[-1]}
+        ## Raw
+        # areas[axis_key] = {"mean": area_mean, "envelope": area_env}
 
     # ---------------------------------------------------------------
     # 4) Plot
@@ -430,10 +441,12 @@ def compute_area_outside_mean_std(
 
     for name, data in markers.items():
         # 1) Plot and retrieve per-axis areas
+        unit = "mm"
 
         if data_type == "Velocity":
             data = derivative(data, 1 / freq)
             data = butter_lowpass_filter(data, cutoff=6, fs=freq)
+            unit = "mm/s"
 
         per_axis = plot_marker_trajectory_mean(
             data,
@@ -458,8 +471,8 @@ def compute_area_outside_mean_std(
 
         # 3) Optionally write into the provided row
         if row is not None:
-            row[f"{data_type}_{name}_area_outside_mean"] = mean_total
-            row[f"{data_type}_{name}_area_outside_std"] = envelope_total
+            row[f"{data_type}_{name}_area_outside_mean ({unit})"] = mean_total
+            row[f"{data_type}_{name}_area_outside_std ({unit})"] = envelope_total
 
     return results
 
@@ -468,12 +481,16 @@ def marker_pos_to_jerk(marker_xyz, cutoff, fs):
     dt = 1 / fs
 
     # 1) Velocity
-    velocity = derivative(marker_xyz, dt) / 1000
+    velocity = derivative(marker_xyz, dt)
     velocity_f = butter_lowpass_filter(velocity, cutoff=cutoff, fs=fs)
+
+    vel_mag = np.linalg.norm(velocity_f, axis=1)
 
     # 2) Accélération
     acceleration = derivative(velocity_f, dt)
     acceleration_f = butter_lowpass_filter(acceleration, cutoff=cutoff, fs=fs)
+
+    acc_mag = np.linalg.norm(acceleration_f, axis=1)
 
     # 3) Jerk
     jerk = derivative(acceleration_f, dt)
@@ -481,4 +498,4 @@ def marker_pos_to_jerk(marker_xyz, cutoff, fs):
 
     jerk_mag = np.linalg.norm(jerk_f, axis=1)
 
-    return jerk_mag
+    return vel_mag, acc_mag, jerk_mag
