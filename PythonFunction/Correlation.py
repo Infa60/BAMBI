@@ -6,7 +6,7 @@ from scipy.stats import pearsonr
 from scipy.signal import correlate
 import matplotlib.pyplot as plt
 
-from PythonFunction.Base_function import compute_speed
+from PythonFunction.Base_function import compute_velocity
 
 
 def angle_projected(w, v, plane="xy"):
@@ -88,7 +88,7 @@ def add_canonical_correlations_stat(pairs, ndigits, row):
         row[f"{k}_angle_xy"] = (
             round(float(d["angle"]), ndigits) if np.isfinite(d["angle"]) else np.nan
         )
-        row[f"{k}_rho_3d"] = (
+        row[f"{k}_angle_3d"] = (
             round(float(d["angle_3d"]), ndigits)
             if np.isfinite(d["angle_3d"])
             else np.nan
@@ -183,7 +183,7 @@ def signal_correlation_concatenate_segments(signal1, signal2, intervals, fs):
 
 
 def add_velocities_correlations_stat(
-    pairs, time, fs, ndigits, row, kick_intervals=None
+    pairs, time, fs, ndigits, row, intervals=None, method=None,
 ):
     """
     Compute and store correlation statistics (Pearson r, p-value, and optimal lag)
@@ -203,9 +203,10 @@ def add_velocities_correlations_stat(
         Number of decimal digits to round the results.
     row : dict
         Dictionary to which results will be added as new keys.
-    kick_intervals : list of (start, end) tuples, optional
+    intervals : list of (start, end) tuples, optional
         List of intervals (in sample indices) where correlation is computed.
         If None, computes correlation over the whole recording.
+    method : "Intersection" or "Union" or empty
 
     Returns
     -------
@@ -213,13 +214,12 @@ def add_velocities_correlations_stat(
     """
     results_correlations = {}
     for name, (A, B) in pairs.items():
-        A_velocities = compute_speed(time, A)
-        B_velocities = compute_speed(time, B)
+        A_velocities = compute_velocity(time, A)
+        B_velocities = compute_velocity(time, B)
 
-        if kick_intervals is not None:
-            method = "union_movement_marker"
+        if intervals is not None:
             r, p_value, lag_s = signal_correlation_concatenate_segments(
-                A_velocities, B_velocities, kick_intervals, fs
+                A_velocities, B_velocities, intervals, fs
             )
         else:
             method = "all_duration"
