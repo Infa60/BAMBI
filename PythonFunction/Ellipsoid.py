@@ -90,6 +90,7 @@ def plot_ellipsoid_and_points_stickman(
     interactive=True,
     inside_point=False,
     outside_point=False,
+    second_point_of_vue=False,
 ):
     """
     Plot a 3D visualization combining:
@@ -158,8 +159,7 @@ def plot_ellipsoid_and_points_stickman(
     mean_RSHD = safe_mean(RSHD)
 
     # Build marker dict only with available markers (not None and finite)
-    def valid(p):
-        return (p is not None) and np.isfinite(p).all()
+
 
     marker_dict = {
         name: pos
@@ -215,9 +215,10 @@ def plot_ellipsoid_and_points_stickman(
     plot_ellipsoid_scene(marker_dict, stickman_connections, pca, threshold, mean,
                          bambiID, folder_save_path, elev=20, azim=30)
 
-    # Second viewpoint
-    plot_ellipsoid_scene(marker_dict, stickman_connections, pca, threshold, mean,
-                         bambiID, folder_save_path, elev=20, azim=120)
+    if second_point_of_vue:
+        # Second viewpoint
+        plot_ellipsoid_scene(marker_dict, stickman_connections, pca, threshold, mean,
+                             bambiID, folder_save_path, elev=20, azim=120)
 
     return stats_outcome
 
@@ -309,3 +310,6 @@ def plot_ellipsoid_scene(marker_dict, stickman_connections, pca, threshold, mean
         plt.show()
     else:
         plt.close(fig)
+
+def valid(p):
+    return (p is not None) and np.isfinite(p).all()

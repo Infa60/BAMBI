@@ -24,9 +24,26 @@ matplotlib.use("TkAgg")
 
 # Set path and load .mat file
 path = "/Users/mathieubourgeois/Documents/BAMBI_Data"
-outcome_path = f"{path}/Outcome_v2_HR"
-result_file = f"{path}/resultats_v2_HR.mat"
+
 anthropo_file = f"{path}/3_months_validity_and_reliability.csv"
+
+outcome_type = "other"
+children_type = "TD"
+
+if outcome_type == "ESMAC":
+    point_of_vue = True
+    outcome_path = os.path.join(path, "Outcome_v2_ESMAC")
+    result_file = os.path.join(path, "resultats_v2_ESMAC.mat")
+elif children_type == "TD":
+    point_of_vue = False
+    outcome_path = os.path.join(path, "Outcome_v2_TD")
+    result_file = os.path.join(path, "resultats_v2_TD.mat")
+elif children_type == "HR":
+    point_of_vue = False
+    outcome_path = os.path.join(path, "Outcome_v2_HR")
+    result_file = os.path.join(path, "resultats_v2_HR.mat")
+else:
+    raise ValueError(f"Unknown outcome_type {outcome_type} or children_type: {children_type}")
 
 data = scipy.io.loadmat(result_file)
 
@@ -422,6 +439,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         interactive=False,
         inside_point=False,
         outside_point=False,
+        second_point_of_vue=point_of_vue,
     )
 
     # Save geometric and velocity distribution stats
@@ -562,6 +580,8 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         interactive=False,
         inside_point=False,
         outside_point=False,
+        second_point_of_vue=point_of_vue,
+
     )
 
     # Save geometric and velocity distribution stats
@@ -594,6 +614,8 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         interactive=False,
         inside_point=False,
         outside_point=False,
+        second_point_of_vue=point_of_vue,
+
     )
 
     # Save geometric and velocity distribution stats
