@@ -47,9 +47,11 @@ plot_fig=1;
 warning('off', 'MATLAB:table:ModifiedAndSavedVarnames');
 
 %% === Define paths ===
-outcome_path = 'S:\KLab\#SHARE\RESEARCH\BAMBI\Data\Kinematic analysis\Outcome';
+outcome_path = 'S:\KLab\#SHARE\RESEARCH\BAMBI\Data\Kinematic analysis\OutcomeRawTD_ESMAC';
+base_path = 'S:\KLab\#SHARE\RESEARCH\BAMBI\Data\Kinematic analysis\3 months_preparations ESMAC 2025\Used for presentation\3 months_TD_c3dfiles_v2';
 
-base_path = 'S:\KLab\#SHARE\RESEARCH\BAMBI\Data\Kinematic analysis\3 months_validity and reliability';
+% Load previously calculated AUC window results
+AUC_table = readtable('S:\KLab\#SHARE\RESEARCH\BAMBI\Data\Kinematic analysis\OutcomeRawTD_ESMAC\AUC_windows_results.xlsx');
 
 % Liste tous les fichiers dans le dossier
 files = dir(fullfile(base_path, '*')); 
@@ -92,6 +94,7 @@ for bambi = 1:length(bambiID_list)
     bambi_data = struct();
     bambiID = bambiID_list(bambi);
     bambiID = bambiID{1};
+    disp([bambiID, "is running"])
 
     % Create output folder for each Bambi if it doesn't exist
     outcome_folder = fullfile(outcome_path, bambiID);
@@ -114,7 +117,7 @@ for bambi = 1:length(bambiID_list)
         numeroID = regexp(c3d_filenames(j).name, 'BAMBI0(\d{2})', 'tokens'); 
         numeroID = str2double(numeroID{1});  
 
-        csv_path = "S:\KLab\#SHARE\RESEARCH\BAMBI\Data\Kinematic analysis\3 months_validity and reliability.csv";
+        csv_path = 'S:\KLab\#SHARE\RESEARCH\BAMBI\Data\Kinematic analysis\3 months_validity and reliability\3 months_validity and reliability.csv';
         csv_tab = readtable(csv_path);
         indices = find(strcmp(csv_tab.InclusionNumber, bambiID));
         laterality = csv_tab.Side(indices(1));
@@ -221,13 +224,27 @@ for bambi = 1:length(bambiID_list)
     %% === Kinematic Processing in Thorax Local Coordinate System ===
     
         %% Restrict marker data to the window of interest
-    % fields = fieldnames(combined_markers_data);
-    % for f = 1:length(fields)
-        % combined_markers_data.(fields{f}) = combined_markers_data.(fields{f})(windowStart:windowEnd, :);
-    % end
+    
+    % Find the row(s) matching the Bambi ID
+    row_idx = strcmp(AUC_table.BambiID, bambiID);
+    
+    % Check if any match was found
+    if any(row_idx)
+        % Extract the values
+        window_starts = AUC_table.WindowStart(row_idx);
+        window_ends = AUC_table.WindowEnd(row_idx);
+    else
+        fprintf('No entry found for %s in AUC_table.\n', target_bambi);
+    end
 
-    % % Update the number of frames based on the window
-    % n = windowEnd - windowStart + 1;
+
+    fields = fieldnames(combined_markers_data);
+    for f = 1:length(fields)
+        combined_markers_data.(fields{f}) = combined_markers_data.(fields{f})(window_starts:window_ends, :);
+    end
+
+    % Update the number of frames based on the window
+    n = window_ends - window_starts + 1;
         
     % Define virtual markers (midpoints)
     midShoulder  = (combined_markers_data.LSHO + combined_markers_data.RSHO) / 2;
@@ -377,7 +394,7 @@ for bambi = 1:length(bambiID_list)
 
     results.(bambiID) = individual_data;
 
-    outcome_result = fullfile(outcome_path, 'resultat_simple.mat');
+    outcome_result = fullfile(outcome_path, 'resultats_v2_ESMAC.mat');
     save(outcome_result, 'results');
     
     clear markerData Marker_in_pelvis_frame Marker_in_pelvis_frame_plot M_f GapfilledDataSet individual_data

@@ -24,8 +24,8 @@ matplotlib.use("TkAgg")
 
 # Set path and load .mat file
 path = "/Users/mathieubourgeois/Documents/BAMBI_Data"
-outcome_path = f"{path}/Outcome_v2"
-result_file = f"{path}/resultats_v2.mat"
+outcome_path = f"{path}/Outcome_v2_HR"
+result_file = f"{path}/resultats_v2_HR.mat"
 anthropo_file = f"{path}/3_months_validity_and_reliability.csv"
 
 data = scipy.io.loadmat(result_file)

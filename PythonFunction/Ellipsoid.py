@@ -211,10 +211,40 @@ def plot_ellipsoid_and_points_stickman(
         (a, b) for (a, b) in base_connections if (a in marker_dict and b in marker_dict)
     ]
 
-    # Create the 3D figure
+    # First viewpoint
+    plot_ellipsoid_scene(marker_dict, stickman_connections, pca, threshold, mean,
+                         bambiID, folder_save_path, elev=20, azim=30)
+
+    # Second viewpoint
+    plot_ellipsoid_scene(marker_dict, stickman_connections, pca, threshold, mean,
+                         bambiID, folder_save_path, elev=20, azim=120)
+
+    return stats_outcome
+
+
+def plot_ellipsoid_scene(marker_dict, stickman_connections, pca, threshold, mean,
+                         bambiID, folder_save_path, elev=20, azim=30,
+                         points=None, enclosed_points=None,
+                         inside_point=False, outside_point=False, interactive=False):
+    """
+    Plot the ellipsoid scene from a specific viewpoint and save it.
+    elev, azim: rotation angles for the viewpoint.
+    """
+
+    # Determine body region based on mean position
+    if np.allclose(mean, marker_dict.get("RANK", np.array([np.inf, np.inf, np.inf]))) or \
+       np.allclose(mean, marker_dict.get("LANK", np.array([np.inf, np.inf, np.inf]))):
+        region = "ankle"
+    elif np.allclose(mean, marker_dict.get("RWRA", np.array([np.inf, np.inf, np.inf]))) or \
+         np.allclose(mean, marker_dict.get("LWRA", np.array([np.inf, np.inf, np.inf]))):
+        region = "wrist"
+    else:
+        region = "unknown"
+
+    # Create figure and set view
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection="3d")
-    ax.view_init(azim=30)
+    ax.view_init(elev=elev, azim=azim)
 
     # Plot markers
     for name, pos in marker_dict.items():
@@ -226,84 +256,56 @@ def plot_ellipsoid_and_points_stickman(
         p1, p2 = marker_dict[start], marker_dict[end]
         ax.plot([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], color="black", linewidth=2)
 
-    # Plot points (inside/outside) if requested
+    # Optional points
     if inside_point and points is not None and len(points) > 0:
         ax.scatter(points[:, 0], points[:, 1], points[:, 2], color="blue", label="All points")
     if outside_point and enclosed_points is not None and len(enclosed_points) > 0:
-        ax.scatter(
-            enclosed_points[:, 0],
-            enclosed_points[:, 1],
-            enclosed_points[:, 2],
-            color="green",
-            label="Inside ellipsoid",
-        )
+        ax.scatter(enclosed_points[:, 0], enclosed_points[:, 1], enclosed_points[:, 2],
+                   color="green", label="Inside ellipsoid")
 
-    # Generate the ellipsoid surface around 'mean'
+    # Generate ellipsoid
     u, v = np.mgrid[0:2 * np.pi:30j, 0:np.pi:20j]
     x = np.cos(u) * np.sin(v)
     y = np.sin(u) * np.sin(v)
     z = np.cos(v)
     ellipsoid_unit = np.stack((x, y, z), axis=-1)
-
     axes_lengths = np.sqrt(pca.explained_variance_ * threshold)
     ellipsoid_scaled = ellipsoid_unit * axes_lengths
     ellipsoid_rotated = np.einsum("ijk,lk->ijl", ellipsoid_scaled, pca.components_)
-
     x_e = ellipsoid_rotated[..., 0] + mean[0]
     y_e = ellipsoid_rotated[..., 1] + mean[1]
     z_e = ellipsoid_rotated[..., 2] + mean[2]
     ax.plot_surface(x_e, y_e, z_e, color="red", alpha=0.3)
 
-    # Axis labels
+    # Labels and equal axis limits
     ax.set_xlabel("X Axis (cm)")
     ax.set_ylabel("Y Axis (cm)")
     ax.set_zlabel("Z Axis (cm)")
 
-    # Compute axis limits from available markers
     all_points = np.vstack([pos for pos in marker_dict.values() if valid(pos)])
     x_limits = [np.nanmin(all_points[:, 0]), np.nanmax(all_points[:, 0])]
     y_limits = [np.nanmin(all_points[:, 1]), np.nanmax(all_points[:, 1])]
     z_limits = [np.nanmin(all_points[:, 2]), np.nanmax(all_points[:, 2])]
+    x_mid, y_mid, z_mid = map(np.mean, (x_limits, y_limits, z_limits))
+    max_range = max(x_limits[1] - x_limits[0],
+                    y_limits[1] - y_limits[0],
+                    z_limits[1] - z_limits[0]) / 2
+    ax.set_xlim(x_mid - max_range, x_mid + max_range)
+    ax.set_ylim(y_mid - max_range, y_mid + max_range)
+    ax.set_zlim(z_mid - max_range, z_mid + max_range)
 
-    x_middle = np.mean(x_limits)
-    y_middle = np.mean(y_limits)
-    z_middle = np.mean(z_limits)
-    max_range = max(
-        x_limits[1] - x_limits[0],
-        y_limits[1] - y_limits[0],
-        z_limits[1] - z_limits[0],
-    ) / 2
-
-    if not np.isfinite([x_middle, y_middle, z_middle, max_range]).all():
-        raise ValueError("Les coordonnées contiennent NaN/Inf – impossible de tracer.")
-
-    ax.set_xlim(x_middle - max_range, x_middle + max_range)
-    ax.set_ylim(y_middle - max_range, y_middle + max_range)
-    ax.set_zlim(z_middle - max_range, z_middle + max_range)
-
-    ax.xaxis.set_major_locator(MultipleLocator(100))
-    ax.yaxis.set_major_locator(MultipleLocator(100))
-    ax.zaxis.set_major_locator(MultipleLocator(100))
+    ax.xaxis.set_major_locator(MultipleLocator(10))
+    ax.yaxis.set_major_locator(MultipleLocator(10))
+    ax.zaxis.set_major_locator(MultipleLocator(10))
     ax.set_box_aspect([1, 1, 1])
-    plt.subplots_adjust(left=0, right=1, top=0.95, bottom=0.05)
 
-    # Show or save
+    # Save
+    file_name = f"{bambiID}_{region}_position_ellipsoid_view_e{elev}_a{azim}.png"
+    save_path = os.path.join(folder_save_path, file_name)
+    fig.savefig(save_path, dpi=300, pad_inches=0)
+    print(f"Saved: {os.path.abspath(save_path)}")
+
     if interactive:
         plt.show()
     else:
-        if np.allclose(mean, marker_dict.get("RANK", np.array([np.inf, np.inf, np.inf]))) or \
-           np.allclose(mean, marker_dict.get("LANK", np.array([np.inf, np.inf, np.inf]))):
-            region = "ankle"
-        elif np.allclose(mean, marker_dict.get("RWRA", np.array([np.inf, np.inf, np.inf]))) or \
-             np.allclose(mean, marker_dict.get("LWRA", np.array([np.inf, np.inf, np.inf]))):
-            region = "wrist"
-        else:
-            region = "unknown"
-
-        filename_to_save = f"{bambiID}_{region}_position_ellipsoid.png"
-        save_path = os.path.join(folder_save_path, filename_to_save)
-        fig.savefig(save_path, dpi=300, pad_inches=0)
-        print(f"Static plot saved to {os.path.abspath(save_path)}")
-        plt.close()
-
-    return stats_outcome
+        plt.close(fig)

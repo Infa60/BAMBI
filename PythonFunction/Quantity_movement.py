@@ -100,7 +100,8 @@ def plot_multi_markers_speed_color(
     # --------------------------------------------------------------
     for ax, (name, xyz) in zip(axes, xyz_mm.items()):
         # 1) speed in m/s + low-pass filter
-        speed, *_ = marker_pos_to_jerk(xyz, cutoff=6, fs=fs)/1000
+        speed, *_ = marker_pos_to_jerk(xyz, cutoff=6, fs=fs)
+        speed /= 1000
         speed_f = butter_lowpass_filter(speed, cutoff, fs, order)
 
         # 2) threshold and gap merging

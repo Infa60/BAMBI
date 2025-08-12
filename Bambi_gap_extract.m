@@ -48,9 +48,10 @@ plot_fig=1;
 warning('off', 'MATLAB:table:ModifiedAndSavedVarnames');
 
 %% === Define paths ===
-outcome_path = 'S:\KLab\#SHARE\RESEARCH\BAMBI\Data\Kinematic analysis\OutcomeRaw';
+outcome_path = 'S:\KLab\#SHARE\RESEARCH\BAMBI\Data\Kinematic analysis\OutcomeRawTD';
 
-base_path = 'S:\KLab\#SHARE\RESEARCH\BAMBI\Data\Kinematic analysis\3 months_validity and reliability';
+% base_path = 'S:\KLab\#SHARE\RESEARCH\BAMBI\Data\Kinematic analysis\3 months_validity and reliability';
+base_path = "S:\KLab\#SHARE\RESEARCH\BAMBI\Data\Kinematic analysis\3 months_validity and reliability\3 months_TD_c3dfiles_v2";
 
 % Liste tous les fichiers dans le dossier
 files = dir(fullfile(base_path, '*')); 
@@ -90,7 +91,7 @@ files = dir(fullfile(base_path, '*.c3d'));
 % Structure to store all participant results
 all_bambi_results = struct();
 
-%% === Process each Bambi based on AUC table ===
+%% === Process each Bambi based on folder ===
 for bambi = 1:length(bambiID_list)
     bambiID = bambiID_list(bambi);
     bambiID = bambiID{1};
@@ -116,23 +117,22 @@ for bambi = 1:length(bambiID_list)
         numeroID = regexp(c3d_filenames(j).name, 'BAMBI0(\d{2})', 'tokens'); 
         numeroID = str2double(numeroID{1});  
 
-        csv_path = "S:\KLab\#SHARE\RESEARCH\BAMBI\Data\Kinematic analysis\3 months_validity and reliability.csv";
+        csv_path = "S:\KLab\#SHARE\RESEARCH\BAMBI\Data\Kinematic analysis\3 months_validity and reliability\3 months_validity and reliability.csv";
         csv_tab = readtable(csv_path);
         indices = find(strcmp(csv_tab.InclusionNumber, bambiID));
         laterality = csv_tab.Side(indices(1));
         individual_data.laterality = laterality;
 
         % Read motion capture data
-        acq = btkReadAcquisition(currentFile);
+        acq = btkReadAcquisition(currentFile{1});
         M = btkGetMarkers(acq);  % Raw marker data
         markers.name = fieldnames(M);
 
         % Define expected marker categories
         categories = {'full', 'no_knee', 'no_upperlimb'};
         expected_markers.full = {'CSHD','FSHD','LSHD','RSHD','LANK','LKNE','LPEL','LSHO','LELB','LWRA','RANK','RKNE','RPEL','RSHO','RELB','RWRA'};
-        expected_markers.no_knee = {'LANK','LPEL','LSHO','LWRA','RANK','RPEL','RSHO','RWRA'};
-        expected_markers.no_upperlimb = {'LANK','LKNE','LPEL','LSHO','RANK','RKNE','RPEL','RSHO'};
         expected_markers.no_head = {'LANK','LKNE','LPEL','LSHO','LELB','LWRA','RANK','RKNE','RPEL','RSHO','RELB','RWRA'};
+        expected_markers.no_elbow = {'CSHD','FSHD','LSHD','RSHD','LANK','LKNE','LPEL','LSHO','LWRA','RANK','RKNE','RPEL','RSHO','RWRA'};
 
         % Determine marker category
         category = check_category(markers, expected_markers);
@@ -151,7 +151,7 @@ for bambi = 1:length(bambiID_list)
         frameRate = btkGetPointFrequency(acq);
 
         % Design low-pass Butterworth filter
-        [butter_B, butter_A] = butter(4, 6/(frameRate/2), 'low');
+        [butter_B, butter_A] = butter(2, 6/(frameRate/2), 'low');
 
         %% === Handle Missing Data ===
         % Convert marker structure to a 2D matrix
@@ -363,7 +363,7 @@ for bambi = 1:length(bambiID_list)
     clear acq M markers midShoulder midLPelSho midRPelSho midPelvis center ...
       xtmp y_gt z_gt x_gt O_gt R_gt T_gt tmp1 tmp2 m_th list_marker ...
       n_marker category missing_markers frameRate butter_B butter_A ...
-      csv_tab indices laterality Marker_in_pelvis_frame_plot M_f Marker_in_pelvis_frame
+      csv_tab indices laterality Marker_in_pelvis_frame_plot M_f Marker_in_pelvis_frame individual_data
     end
 end
 
