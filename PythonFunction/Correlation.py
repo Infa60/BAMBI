@@ -5,8 +5,7 @@ from sklearn.cross_decomposition import CCA
 from scipy.stats import pearsonr
 from scipy.signal import correlate
 import matplotlib.pyplot as plt
-
-from PythonFunction.Base_function import compute_velocity
+from PythonFunction.Quantity_movement import *
 
 
 def angle_projected(w, v, plane="xy"):
@@ -182,8 +181,8 @@ def signal_correlation_concatenate_segments(signal1, signal2, intervals, fs):
     return r, p, lag_seconds
 
 
-def add_velocities_correlations_stat(
-    pairs, time, fs, ndigits, row, intervals=None, method=None,
+def add_correlations_stat(
+    pairs, fs, ndigits, row, usage, intervals=None, method=None,
 ):
     """
     Compute and store correlation statistics (Pearson r, p-value, and optimal lag)
@@ -195,14 +194,14 @@ def add_velocities_correlations_stat(
     pairs : dict
         Dictionary where keys are pair names (e.g., 'knee_hip') and values are tuples
         of arrays: (marker_A_positions, marker_B_positions), each shape (n_samples, 3).
-    time : array-like
-        1D array of time stamps (seconds) for all samples.
     fs : float
         Sampling frequency in Hz.
     ndigits : int
         Number of decimal digits to round the results.
     row : dict
         Dictionary to which results will be added as new keys.
+    usage : str
+        Choice between "velocity", "acceleration" or "jerk"
     intervals : list of (start, end) tuples, optional
         List of intervals (in sample indices) where correlation is computed.
         If None, computes correlation over the whole recording.
@@ -214,27 +213,36 @@ def add_velocities_correlations_stat(
     """
     results_correlations = {}
     for name, (A, B) in pairs.items():
-        A_velocities = compute_velocity(time, A)
-        B_velocities = compute_velocity(time, B)
+
+        velA, accA, jerkA = marker_pos_to_jerk(A, cutoff=6, fs=fs)
+        velB, accB, jerkB = marker_pos_to_jerk(B, cutoff=6, fs=fs)
+
+        if usage == "velocity":
+            A_data, B_data = velA, velB
+        elif usage == "acceleration":
+            A_data, B_data = accA, accB
+        elif usage == "jerk":
+            A_data, B_data = jerkA, jerkB
+
 
         if intervals is not None:
             r, p_value, lag_s = signal_correlation_concatenate_segments(
-                A_velocities, B_velocities, intervals, fs
+                A_data, B_data, intervals, fs
             )
         else:
             method = "all_duration"
-            r, p_value = pearsonr(A_velocities, B_velocities)
-            lag_s, max_corr = optimal_lag_crosscorr(A_velocities, B_velocities, fs)
+            r, p_value = pearsonr(A_data, B_data)
+            lag_s, max_corr = optimal_lag_crosscorr(A_data, B_data, fs)
 
         results_correlations[name] = dict(corr=r, p_value=p_value, lag_s=lag_s)
 
     for k, d in results_correlations.items():
-        row[f"{k}_corr_{method}"] = (
+        row[f"{k}_{usage}_corr_{method}"] = (
             round(float(d["corr"]), ndigits) if np.isfinite(d["corr"]) else np.nan
         )
-        row[f"{k}_p_value_{method}"] = (
+        row[f"{k}_{usage}_p_value_{method}"] = (
             round(float(d["p_value"]), ndigits) if np.isfinite(d["p_value"]) else np.nan
         )
-        row[f"{k}_lag_{method}"] = (
+        row[f"{k}_{usage}_lag_{method}"] = (
             round(float(d["lag_s"]), ndigits) if np.isfinite(d["lag_s"]) else np.nan
         )

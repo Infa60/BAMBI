@@ -378,32 +378,6 @@ def add_contact_metrics(
         )
 
 
-def compute_velocity(time, xyz):
-    """
-    Compute the instantaneous speed |v| for a 3-D trajectory.
-
-    Parameters
-    ----------
-    time : (N,) array-like
-        Time stamps in seconds.
-    xyz : (N, 3) array-like
-        Marker positions in meters.
-
-    Returns
-    -------
-    speed : (N,) ndarray
-        Speed (m/s) at each time step.
-    """
-    time = np.asarray(time)
-    xyz = np.asarray(xyz)
-
-    dt = np.gradient(time)  # Δt between samples
-    velocity = np.gradient(xyz, axis=0) / dt[:, None]  # numerical derivative
-    speed = np.linalg.norm(velocity, axis=1)  # magnitude of velocity
-
-    return speed
-
-
 def derivative(data, dt):
     """Return d(data)/dt."""
     return np.gradient(data, dt, axis=0)

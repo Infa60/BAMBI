@@ -107,8 +107,8 @@ for folder in [
 
 # Iterate through each Bambi ID
 for i, bambiID in enumerate(results_struct.dtype.names):
-    if results_struct[bambiID]["marker_category"][0][0][0] != "full":
-        continue
+    #if results_struct[bambiID]["marker_category"][0][0][0] != "full":
+        #continue
 
     bambi_indiv_interval = {}
 
@@ -756,36 +756,37 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
 
 
-    ## Correlation beteween marker during interval activation -- union
+    ## Correlation beteween marker velocity/acceleration/jerk during interval activation -- union
 
-    add_velocities_correlations_stat(
-        marker_for_correlations,
-        time=time_duration,
-        fs=freq,
-        ndigits=2,
-        row=correlation_union_row,
-        intervals=interval_movement_common_union_frame,
-        method="union"
-    )
+    for usage in ("velocity", "acceleration", "jerk"):
+        add_correlations_stat(
+            marker_for_correlations,
+            fs=freq,
+            ndigits=2,
+            row=correlation_union_row,
+            usage=usage,
+            intervals=interval_movement_common_union_frame,
+            method="union"
+        )
 
-    add_velocities_correlations_stat(
-        marker_for_correlations,
-        time=time_duration,
-        fs=freq,
-        ndigits=2,
-        row=correlation_intersection_row,
-        intervals=interval_movement_common_intersection_frame,
-        method="intersection"
-    )
+        add_correlations_stat(
+            marker_for_correlations,
+            fs=freq,
+            ndigits=2,
+            row=correlation_intersection_row,
+            usage=usage,
+            intervals=interval_movement_common_intersection_frame,
+            method="intersection"
+        )
 
-    add_velocities_correlations_stat(
-        marker_for_correlations,
-        time=time_duration,
-        fs=freq,
-        ndigits=2,
-        row=correlation_all_duration_row,
-        intervals=None,
-    )
+        add_correlations_stat(
+            marker_for_correlations,
+            fs=freq,
+            ndigits=2,
+            row=correlation_all_duration_row,
+            usage=usage,
+            intervals=None,
+        )
 
     # Add the row to the list
     data_hand_hand_row.append(hand_hand_row)
