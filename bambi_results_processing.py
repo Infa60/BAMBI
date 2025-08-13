@@ -27,21 +27,26 @@ path = "/Users/mathieubourgeois/Documents/BAMBI_Data"
 
 anthropo_file = f"{path}/3_months_validity_and_reliability.csv"
 
-outcome_type = "other"
+outcome_type = "ESMAC"
 children_type = "TD"
 
 if outcome_type == "ESMAC":
     point_of_vue = True
-    outcome_path = os.path.join(path, "Outcome_v2_ESMAC")
+    outcome_path = os.path.join(path, "Outcome_v13_ESMAC")
     result_file = os.path.join(path, "resultats_v2_ESMAC.mat")
+    ankle_high_distance_mean = True
 elif children_type == "TD":
     point_of_vue = False
     outcome_path = os.path.join(path, "Outcome_v2_TD")
     result_file = os.path.join(path, "resultats_v2_TD.mat")
+    ankle_high_distance_mean = False
+
 elif children_type == "HR":
     point_of_vue = False
     outcome_path = os.path.join(path, "Outcome_v2_HR")
     result_file = os.path.join(path, "resultats_v2_HR.mat")
+    ankle_high_distance_mean = False
+
 else:
     raise ValueError(f"Unknown outcome_type {outcome_type} or children_type: {children_type}")
 
@@ -371,7 +376,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     add_stats(row=leg_flex_add_row, prefix="Left_flex", data=hip_flex_l)
 
     ## Leg lifting
-    right_lift_with_leg_extend, distance_pelv_ank_right = ankle_high(
+    right_lift_with_leg_extend, distance_pelv_ank_right, right_ankle_high_from_ground= ankle_high(
         RANK,
         RPEL,
         RANK_global,
@@ -383,7 +388,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         plot_name=f"{bambiID}_Right",
         plot=True,
     )
-    left_lift_with_leg_extend, distance_pelv_ank_left = ankle_high(
+    left_lift_with_leg_extend, distance_pelv_ank_left, left_ankle_high_from_ground = ankle_high(
         LANK,
         LPEL,
         LANK_global,
@@ -407,6 +412,22 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         durations_per_event=left_lift_with_leg_extend["durations_per_event"],
         amplitude_per_event=left_lift_with_leg_extend["amplitude_per_event"],
     )
+
+    if ankle_high_distance_mean:
+        add_summary_stats(
+            dest=leg_lift_row,
+            prefix="right_ankle_height_without_threshold",
+            values=right_ankle_high_from_ground,
+            ndigits=2,
+        )
+
+        add_summary_stats(
+            dest=leg_lift_row,
+            prefix="left_ankle_height_without_threshold",
+            values=left_ankle_high_from_ground,
+            ndigits=2,
+        )
+
     legR_lift_outcomes_total.append(right_lift_with_leg_extend)
     legL_lift_outcomes_total.append(left_lift_with_leg_extend)
 

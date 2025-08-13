@@ -152,7 +152,7 @@ def analyze_intervals_duration(
         # amplitude if requested
         if use_distance:
             seg = distance[start : end + 1]  # end inclusive
-            amp = float(np.ptp(seg))  # max - min
+            amp = float(np.max(seg) - 100)  # max - threshold
             amplitude_per_event.append(amp)
 
     if not durations_per_event:  # aucune fenêtre valide

@@ -257,7 +257,7 @@ def ankle_high(
         common_intervals, time_vector, ankle_high_from_ground
     )
 
-    return lift_with_leg_extend, distance_pelv_ank
+    return lift_with_leg_extend, distance_pelv_ank, ankle_high_from_ground
 
 
 def compute_distance(coords1: np.ndarray, coords2: np.ndarray) -> np.ndarray:
