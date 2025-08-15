@@ -2,7 +2,7 @@ from scipy.stats import gaussian_kde, skew, kurtosis
 import os
 from PythonFunction.Base_function import *
 
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 
 
 def distance_foot_foot(

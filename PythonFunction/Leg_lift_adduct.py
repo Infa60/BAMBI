@@ -13,7 +13,7 @@ from PythonFunction.Base_function import (
     analyze_intervals_duration,
 )
 
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 
 
 def plot_combined_pdf(

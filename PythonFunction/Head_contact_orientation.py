@@ -8,7 +8,7 @@ from scipy.spatial.transform import Rotation as R
 from PythonFunction.Base_function import *
 from PythonFunction.Members_contact import *
 
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 
 
 def get_trunk_rot_matrix(LSHO, RSHO, LPEL, RPEL):

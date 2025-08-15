@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.ticker import MultipleLocator
 
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 
 
 def ellipsoid_volume_and_points(points, confidence_threshold):
@@ -87,7 +87,7 @@ def plot_ellipsoid_and_points_stickman(
     FSHD=None,
     LSHD=None,
     RSHD=None,
-    interactive=True,
+    interactive=False,
     inside_point=False,
     outside_point=False,
     second_point_of_vue=False,
@@ -211,16 +211,21 @@ def plot_ellipsoid_and_points_stickman(
         (a, b) for (a, b) in base_connections if (a in marker_dict and b in marker_dict)
     ]
 
+    ellipsoid_size = np.round([np.max(enclosed_points[:,0])-np.min(enclosed_points[:,0]),
+                      np.max(enclosed_points[:,1])-np.min(enclosed_points[:,1]),
+                      np.max(enclosed_points[:,2])-np.min(enclosed_points[:,2])],3)
     # First viewpoint
-    plot_ellipsoid_scene(marker_dict, stickman_connections, pca, threshold, mean,
-                         bambiID, folder_save_path, elev=20, azim=30)
+    plot_ellipsoid_scene(marker_dict, stickman_connections, pca, threshold, mean, bambiID, folder_save_path, elev=20,
+                         azim=30, points=points, enclosed_points=enclosed_points, inside_point=inside_point,
+                         outside_point=outside_point, interactive=interactive)
 
     if second_point_of_vue:
         # Second viewpoint
-        plot_ellipsoid_scene(marker_dict, stickman_connections, pca, threshold, mean,
-                             bambiID, folder_save_path, elev=20, azim=120)
+        plot_ellipsoid_scene(marker_dict, stickman_connections, pca, threshold, mean, bambiID, folder_save_path,
+                             elev=20, azim=120, points=points, enclosed_points=enclosed_points,
+                             inside_point=inside_point, outside_point=outside_point, interactive=interactive)
 
-    return stats_outcome
+    return stats_outcome, ellipsoid_size
 
 
 def plot_ellipsoid_scene(marker_dict, stickman_connections, pca, threshold, mean,

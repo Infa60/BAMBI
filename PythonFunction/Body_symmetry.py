@@ -6,7 +6,7 @@ from PythonFunction.Base_function import (
     analyze_intervals_duration,
 )
 
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 
 
 def body_symmetry(LPEL, RPEL, LSHO, RSHO, threshold, time_vector, plot=False):

@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 from typing import Sequence
+from matplotlib.widgets import Button
 
 LABEL_COLORS = {
     None: "black",
@@ -208,3 +209,93 @@ def interactive_label_peaks(
     fig.canvas.mpl_connect("key_press_event", on_key)
     redraw()
     plt.show()
+
+
+def label_and_save_kick(
+    knee_angle_d, knee_angle_g, start, end, kick_side, save_list=None, fs=100
+):
+    """
+    Affiche les angles genou droit/gauche sur un intervalle de kick élargi pour contexte,
+    permet de choisir un label par bouton (single, alternate, simultaneous),
+    ajoute les valeurs et le label à save_list.
+    Affiche le temps en secondes sur l'axe x.
+    """
+    if save_list is None:
+        save_list = []
+
+    # Calcul de l'extension de la fenêtre
+    kick_len = end - start
+    ext = kick_len // 2
+    N = len(knee_angle_d)
+
+    start_ext = max(0, start - ext)
+    end_ext = min(N, end + ext)
+
+    # Indice du minimum dans l'intervalle de kick
+    if kick_side == "right":
+        idx_min = start + np.argmin(knee_angle_d[start:end])
+    else:
+        idx_min = start + np.argmin(knee_angle_g[start:end])
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+
+    # Temps en secondes pour l'affichage
+    t_ext = np.arange(start_ext, end_ext) / fs
+    t_start = start / fs
+    t_end = end / fs
+    t_min = idx_min / fs
+
+    ax.plot(
+        t_ext, knee_angle_d[start_ext:end_ext], label="Right knee", color="tab:green"
+    )
+    ax.plot(
+        t_ext, knee_angle_g[start_ext:end_ext], label="Left knee", color="tab:orange"
+    )
+
+    # Ligne verticale sur le minimum du kick sélectionné (en secondes)
+    ax.axvline(t_min, color="red", linestyle="--", linewidth=2, label="Kick minimum")
+
+    # Mise en valeur de la zone du kick sélectionné (en secondes)
+    ax.axvspan(t_start, t_end, color="grey", alpha=0.15, label="Kick interval")
+
+    ax.set_title(
+        f"Label {kick_side.capitalize()} Kick | Interval: {t_start:.2f}-{t_end:.2f} s"
+    )
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Knee angle (deg)")
+    ax.legend()
+
+    plt.subplots_adjust(bottom=0.25)
+
+    label_dict = {"type": None}
+
+    def on_label(label):
+        label_dict["type"] = label
+        plt.close(fig)
+        save_list.append(
+            {
+                "side": kick_side,
+                "start": start,
+                "end": end,
+                "knee_angle_d": knee_angle_d[start:end].copy(),
+                "knee_angle_g": knee_angle_g[start:end].copy(),
+                "type": label,
+            }
+        )
+
+    # Add buttons
+    ax_single = plt.axes([0.15, 0.05, 0.2, 0.09])
+    ax_alternate = plt.axes([0.4, 0.05, 0.2, 0.09])
+    ax_simul = plt.axes([0.65, 0.05, 0.2, 0.09])
+
+    b_single = Button(ax_single, "Single", color="gold", hovercolor="orange")
+    b_alternate = Button(ax_alternate, "Alternate", color="violet", hovercolor="purple")
+    b_simul = Button(ax_simul, "Simultaneous", color="deepskyblue", hovercolor="blue")
+
+    b_single.on_clicked(lambda event: on_label("single"))
+    b_alternate.on_clicked(lambda event: on_label("alternate"))
+    b_simul.on_clicked(lambda event: on_label("simultaneous"))
+
+    plt.show()
+
+    return save_list

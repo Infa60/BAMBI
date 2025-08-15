@@ -7,7 +7,7 @@ from scipy.stats import skew
 from scipy.signal import hilbert, correlate, butter, filtfilt
 import math
 
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 
 
 def resample_size(data, target_length):

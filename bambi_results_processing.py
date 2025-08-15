@@ -20,7 +20,7 @@ from PythonFunction.Quantity_movement import *
 from PythonFunction.Correlation import *
 
 # Set matplotlib backend
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 
 # Set path and load .mat file
 path = "/Users/mathieubourgeois/Documents/BAMBI_Data"
@@ -32,20 +32,23 @@ children_type = "TD"
 
 if outcome_type == "ESMAC":
     point_of_vue = True
-    outcome_path = os.path.join(path, "Outcome_v13_ESMAC")
+    outcome_path = os.path.join(path, "Outcome_v2_ESMAC")
     result_file = os.path.join(path, "resultats_v2_ESMAC.mat")
     ankle_high_distance_mean = True
+    ellipsoid_size_extract = True
 elif children_type == "TD":
     point_of_vue = False
     outcome_path = os.path.join(path, "Outcome_v2_TD")
     result_file = os.path.join(path, "resultats_v2_TD.mat")
     ankle_high_distance_mean = False
+    ellipsoid_size_extract = False
 
 elif children_type == "HR":
     point_of_vue = False
     outcome_path = os.path.join(path, "Outcome_v2_HR")
     result_file = os.path.join(path, "resultats_v2_HR.mat")
     ankle_high_distance_mean = False
+    ellipsoid_size_extract = False
 
 else:
     raise ValueError(f"Unknown outcome_type {outcome_type} or children_type: {children_type}")
@@ -436,7 +439,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     ank_mouv_row["distance_travel_ankle (mm)"] = np.sum(distances_ankle_travel)
 
     # Call function to plot ellipsoid and stickman, retrieve geometric stats
-    stats_ankle_ellipsoid = plot_ellipsoid_and_points_stickman(
+    stats_ankle_ellipsoid, ellipsoid_ankle_size = plot_ellipsoid_and_points_stickman(
         pos_ankle,
         RANK,
         LANK,
@@ -468,6 +471,11 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     ank_mouv_row["num_enclosed"] = stats_ankle_ellipsoid["num_enclosed"]
     ank_mouv_row["percentage_enclosed"] = stats_ankle_ellipsoid["percentage_enclosed"]
     ank_mouv_row["volume_90 (cm3)"] = stats_ankle_ellipsoid["volume_90"]
+
+    if ellipsoid_size_extract:
+        ank_mouv_row["medio_lateral_ellipsoid_length (cm)"] = ellipsoid_ankle_size[0]
+        ank_mouv_row["antero_posterior_ellipsoid_length (cm)"] = ellipsoid_ankle_size[1]
+        ank_mouv_row["vertical_ellipsoid_length (cm)"] = ellipsoid_ankle_size[2]
 
     ## Hand to mouth contact
     if results_struct[bambiID]["marker_category"][0][0][0] == "full":
@@ -577,7 +585,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     )
 
     ## Wrist ellipsoid
-    stats_right_wrist_ellipsoid = plot_ellipsoid_and_points_stickman(
+    stats_right_wrist_ellipsoid, ellipsoid_size_right_wrist = plot_ellipsoid_and_points_stickman(
         RWRA,
         RANK,
         LANK,
@@ -611,7 +619,12 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     wrist_mouv_row["R_percentage_enclosed"] = stats_right_wrist_ellipsoid["percentage_enclosed"]
     wrist_mouv_row["R_volume_90 (cm3)"] = stats_right_wrist_ellipsoid["volume_90"]
 
-    stats_left_wrist_ellipsoid = plot_ellipsoid_and_points_stickman(
+    if ellipsoid_size_extract:
+        ank_mouv_row["medio_lateral_right_ellipsoid_length (cm)"] = ellipsoid_size_right_wrist[0]
+        ank_mouv_row["antero_posterior_right_ellipsoid_length (cm)"] = ellipsoid_size_right_wrist[1]
+        ank_mouv_row["vertical_ellipsoid_right_length (cm)"] = ellipsoid_size_right_wrist[2]
+
+    stats_left_wrist_ellipsoid, ellipsoid_size_left_wrist = plot_ellipsoid_and_points_stickman(
         LWRA,
         RANK,
         LANK,
@@ -644,6 +657,11 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     wrist_mouv_row["L_num_enclosed"] = stats_left_wrist_ellipsoid["num_enclosed"]
     wrist_mouv_row["L_percentage_enclosed"] = stats_left_wrist_ellipsoid["percentage_enclosed"]
     wrist_mouv_row["L_volume_90 (cm3)"] = stats_left_wrist_ellipsoid["volume_90"]
+
+    if ellipsoid_size_extract:
+        ank_mouv_row["medio_lateral_left_ellipsoid_length (cm)"] = ellipsoid_size_left_wrist[0]
+        ank_mouv_row["antero_posterior_left_ellipsoid_length (cm)"] = ellipsoid_size_left_wrist[1]
+        ank_mouv_row["vertical_ellipsoid_left_length (cm)"] = ellipsoid_size_left_wrist[2]
 
     ## Head rotation
     # head_rotation(CSHD, FSHD, LSHD, RSHD, LSHO, RSHO, LPEL, RPEL, threshold=(-5, 5), time_vector=time_duration, plot=False)

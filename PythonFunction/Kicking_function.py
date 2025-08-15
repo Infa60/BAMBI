@@ -2,7 +2,7 @@ from PythonFunction.Base_function import *
 from scipy.signal import find_peaks
 from sklearn.cross_decomposition import CCA
 
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 
 
 def extract_kick_intervals(
