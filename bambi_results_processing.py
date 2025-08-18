@@ -37,6 +37,8 @@ if outcome_type == "ESMAC":
     result_file = os.path.join(path, "resultats_v2_ESMAC.mat")
     ankle_high_distance_mean = True
     ellipsoid_size_extract = True
+    combine_per_supine_or_bambi=False
+
 elif children_type == "TD":
     point_of_vue = False
     outcome_path = os.path.join(path, "Outcome_v2bis_TD")
@@ -44,6 +46,7 @@ elif children_type == "TD":
     ankle_high_distance_mean = False
     ellipsoid_size_extract = False
     kinematics_by_baby = defaultdict(dict)
+    combine_per_supine_or_bambi=True
 
 elif children_type == "HR":
     point_of_vue = False
@@ -52,6 +55,8 @@ elif children_type == "HR":
     ankle_high_distance_mean = False
     ellipsoid_size_extract = False
     kinematics_by_baby = defaultdict(dict)
+    combine_per_supine_or_bambi=True
+
 
 else:
     raise ValueError(f"Unknown outcome_type {outcome_type} or children_type: {children_type}")
@@ -906,123 +911,25 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     data_wrist_mouv_row.append(wrist_mouv_row)
 
     mat_file_interval[bambiID] = bambi_indiv_interval
-    kinematics_by_baby[bambiID] = kinematics_by_marker
 
-bambi_unique_ID = sorted({run_id.split('_', 1)[0] for run_id in kinematics_by_baby})
+    if combine_per_supine_or_bambi:
+        kinematics_by_baby[bambiID] = kinematics_by_marker
 
-marker_to_velocity_compute = [
-    "RWRA", "LWRA", "RANK", "LANK", "RKNE", "LKNE", "RELB", "LELB"
-]
+if combine_per_supine_or_bambi:
 
-## Concatenate per bambi
+    collector_by_metric_per_bambi = {
+        "velocity":     data_marker_concatenate_per_bambi_velocity_row,
+        "acceleration": data_marker_concatenate_per_bambi_acceleration_row,
+        "jerk":         data_marker_concatenate_per_bambi_jerk_row,
+    }
 
-collector_by_metric_per_bambi = {
-    "velocity": data_marker_concatenate_per_bambi_velocity_row,
-    "acceleration": data_marker_concatenate_per_bambi_acceleration_row,
-    "jerk": data_marker_concatenate_per_bambi_jerk_row,
-}
+    collector_by_metric_per_supine = {
+        "velocity":     data_marker_concatenate_per_supine_velocity_row,
+        "acceleration": data_marker_concatenate_per_supine_acceleration_row,
+        "jerk":         data_marker_concatenate_per_supine_jerk_row,
+    }
 
-metrics = ("velocity", "acceleration", "jerk")
-pattern = None
-
-for bambi_unique in bambi_unique_ID:
-    # One row per metric
-    rows = {m: {"bambiID": bambi_unique} for m in metrics}
-    # First successful concatenation length per metric (for N_frames)
-    n_frames = {m: None for m in metrics}
-
-    for marker_to_compute in marker_to_velocity_compute:
-        for metric in metrics:
-            try:
-                # Concatenate ALL runs for the subject (ignore Supine grouping)
-                res = concat_marker_metric_for_subject(
-                    kinematics_by_baby,
-                    subject_root=bambi_unique,
-                    marker=marker_to_compute,
-                    metric=metric,
-                    mode="subject",
-                    include_pattern=pattern
-                )
-            except Exception:
-                # Skip this marker/metric if nothing found (or mismatched shapes across runs)
-                continue
-
-            arr = res["array"]  # shape: (T_total, F)
-
-            # Keep N_frames once (first successful concatenation) for this metric
-            if n_frames[metric] is None:
-                n_frames[metric] = len(arr)
-
-            # Write this marker's concatenated series into the appropriate row
-            marker_outcome(
-                arr,
-                row=rows[metric],
-                marker_name=marker_to_compute,
-                type_value=metric,
-            )
-
-    # Finalize row metadata and append using the collector-by-metric
-    for metric in metrics:
-        rows[metric]["N_frames"] = 0 if n_frames[metric] is None else n_frames[metric]
-        collector_by_metric_per_bambi[metric].append(rows[metric])
-
-## Concatenate per supine
-
-collector_by_metric_per_supine = {
-    "velocity": data_marker_concatenate_per_supine_velocity_row,
-    "acceleration": data_marker_concatenate_per_supine_acceleration_row,
-    "jerk": data_marker_concatenate_per_supine_jerk_row,
-}
-
-metrics = ("velocity", "acceleration", "jerk")
-pattern = None
-
-for bambi_unique in bambi_unique_ID:
-    # One output row per Supine number and per metric
-    for metric in metrics:
-        rows_by_sup = {}  # { supine_num: row_dict }
-        nframes_by_sup = {}  # { supine_num: first successful concatenation length }
-
-        for marker_to_compute in marker_to_velocity_compute:
-            try:
-                # Concatenate PER SUPINE for this marker/metric
-                res_by_supine = concat_marker_metric_for_subject(
-                    kinematics_by_baby,
-                    subject_root=bambi_unique,
-                    marker=marker_to_compute,
-                    metric=metric,
-                    mode="subject_supine",
-                    include_pattern=pattern,
-                )
-            except Exception:
-                # Skip this marker if unavailable or shapes mismatch
-                continue
-
-            # res_by_supine: { supine_num: {'array', 'segments', 'runs_used'} }
-            for supine_num, bundle in res_by_supine.items():
-                arr = bundle["array"]  # shape: (T_total_supine, F)
-
-                # Initialize the row for this Supine if needed
-                if supine_num not in rows_by_sup:
-                    rows_by_sup[supine_num] = {
-                        "bambiID": bambi_unique,
-                        "supine": int(supine_num),
-                    }
-                    nframes_by_sup[supine_num] = len(arr)  # first valid length
-
-                # Populate columns for this marker in the Supine row
-                marker_outcome(
-                    arr,
-                    row=rows_by_sup[supine_num],
-                    marker_name=marker_to_compute,
-                    type_value=metric,
-                )
-
-        # Finalize rows for this metric and append to the right collector
-        for supine_num in sorted(rows_by_sup.keys()):
-            row = rows_by_sup[supine_num]
-            row["N_frames"] = nframes_by_sup.get(supine_num, 0)
-            collector_by_metric_per_supine[metric].append(row)
+    concatenate_compute_store(kinematics_by_baby, collector_by_metric_per_bambi, collector_by_metric_per_supine)
 
 
 

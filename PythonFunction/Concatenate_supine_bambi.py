@@ -1,8 +1,8 @@
 import re
-import numpy as np
 from collections import defaultdict
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, List, Optional, Tuple, Any
 
+from PythonFunction.Quantity_movement import *
 
 def parse_run_id(run_id: str):
     """
@@ -213,3 +213,144 @@ def concat_marker_metric_for_subject(
 
     else:
         raise ValueError("mode must be 'subject' or 'subject_supine'")
+
+
+def concatenate_compute_store(
+        kinematics_by_subject: Dict[str, Any],
+        per_metric_subject_collectors: Dict[str, List[dict]],
+        per_metric_supine_collectors: Dict[str, List[dict]],
+        *,
+        metrics: Iterable[str] = ("velocity", "acceleration", "jerk"),
+        include_pattern: Optional[str] = None,
+) -> None:
+    """
+    Build consistent, concatenated feature rows for (1) each subject across all runs,
+    and (2) each (subject, supine) subset, then store them into the provided collectors.
+    The same row schema is used in both cases to ease downstream processing.
+
+    Parameters
+    ----------
+    kinematics_by_subject : dict
+        Mapping of run_id -> run data. `run_id` must start with "<subject_id>_".
+        The content is whatever `concat_marker_metric_for_subject` expects.
+
+    per_metric_subject_collectors : dict[str, list[dict]]
+        Output containers for subject-level rows, one list per metric
+        (e.g., {"velocity": [], "acceleration": [], "jerk": []}).
+        New rows will be appended in place.
+
+    per_metric_supine_collectors : dict[str, list[dict]]
+        Output containers for (subject, supine)-level rows, one list per metric.
+        New rows will be appended in place.
+
+    metrics : iterable of str, default ("velocity", "acceleration", "jerk")
+        The metrics to aggregate/concatenate for each marker.
+
+    include_pattern : str or None, default None
+        Optional regex (case-insensitive recommended) used by
+        `concat_marker_metric_for_subject(..., include_pattern=...)`
+        to include only matching runs.
+
+    Row schema (identical for both aggregation levels)
+    --------------------------------------------------
+
+    """
+
+    bambi_unique_ID = sorted({run_id.split('_', 1)[0] for run_id in kinematics_by_subject})
+
+    marker_to_velocity_compute = [
+        "RWRA", "LWRA", "RANK", "LANK", "RKNE", "LKNE", "RELB", "LELB"
+    ]
+
+    ## Concatenate per bambi
+
+    for bambi_unique in bambi_unique_ID:
+        # One row per metric
+        rows = {m: {"bambiID": bambi_unique} for m in metrics}
+        # First successful concatenation length per metric (for N_frames)
+        n_frames = {m: None for m in metrics}
+
+        for marker_to_compute in marker_to_velocity_compute:
+            for metric in metrics:
+                try:
+                    # Concatenate ALL runs for the subject (ignore Supine grouping)
+                    res = concat_marker_metric_for_subject(
+                        kinematics_by_subject,
+                        subject_root=bambi_unique,
+                        marker=marker_to_compute,
+                        metric=metric,
+                        mode="subject",
+                        include_pattern=include_pattern
+                    )
+                except Exception:
+                    # Skip this marker/metric if nothing found (or mismatched shapes across runs)
+                    continue
+
+                arr = res["array"]  # shape: (T_total, F)
+
+                # Keep N_frames once (first successful concatenation) for this metric
+                if n_frames[metric] is None:
+                    n_frames[metric] = len(arr)
+
+                # Write this marker's concatenated series into the appropriate row
+                marker_outcome(
+                    arr,
+                    row=rows[metric],
+                    marker_name=marker_to_compute,
+                    type_value=metric,
+                )
+
+        # Finalize row metadata and append using the collector-by-metric
+        for metric in metrics:
+            rows[metric]["N_frames"] = 0 if n_frames[metric] is None else n_frames[metric]
+            per_metric_subject_collectors[metric].append(rows[metric])
+
+    ## Concatenate per supine
+
+    for bambi_unique in bambi_unique_ID:
+        # One output row per Supine number and per metric
+        for metric in metrics:
+            rows_by_sup = {}  # { supine_num: row_dict }
+            nframes_by_sup = {}  # { supine_num: first successful concatenation length }
+
+            for marker_to_compute in marker_to_velocity_compute:
+                try:
+                    # Concatenate PER SUPINE for this marker/metric
+                    res_by_supine = concat_marker_metric_for_subject(
+                        kinematics_by_subject,
+                        subject_root=bambi_unique,
+                        marker=marker_to_compute,
+                        metric=metric,
+                        mode="subject_supine",
+                        include_pattern=include_pattern,
+                    )
+                except Exception:
+                    # Skip this marker if unavailable or shapes mismatch
+                    continue
+
+                # res_by_supine: { supine_num: {'array', 'segments', 'runs_used'} }
+                for supine_num, bundle in res_by_supine.items():
+                    arr = bundle["array"]  # shape: (T_total_supine, F)
+
+                    # Initialize the row for this Supine if needed
+                    if supine_num not in rows_by_sup:
+                        rows_by_sup[supine_num] = {
+                            "bambiID": bambi_unique,
+                            "supine": int(supine_num),
+                        }
+                        nframes_by_sup[supine_num] = len(arr)  # first valid length
+
+                    # Populate columns for this marker in the Supine row
+                    marker_outcome(
+                        arr,
+                        row=rows_by_sup[supine_num],
+                        marker_name=marker_to_compute,
+                        type_value=metric,
+                    )
+
+            # Finalize rows for this metric and append to the right collector
+            for supine_num in sorted(rows_by_sup.keys()):
+                row = rows_by_sup[supine_num]
+                row["N_frames"] = nframes_by_sup.get(supine_num, 0)
+                per_metric_supine_collectors[metric].append(row)
+
