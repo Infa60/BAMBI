@@ -206,4 +206,3 @@ def refine_kick_ends(
     return refined
 
 
-

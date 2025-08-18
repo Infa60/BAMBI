@@ -1,6 +1,6 @@
 import scipy.io
 from scipy.io import savemat
-
+from collections import defaultdict
 from scipy.stats import skew
 from collections import Counter
 from PythonFunction.Ellipsoid import plot_ellipsoid_and_points_stickman
@@ -18,16 +18,17 @@ from PythonFunction.TEST import *
 from PythonFunction.Leg_lift_adduct import *
 from PythonFunction.Quantity_movement import *
 from PythonFunction.Correlation import *
+from PythonFunction.Concatenate_supine_bambi import *
 
 # Set matplotlib backend
-matplotlib.use("TkAgg")
+# matplotlib.use("TkAgg")
 
 # Set path and load .mat file
 path = "/Users/mathieubourgeois/Documents/BAMBI_Data"
 
 anthropo_file = f"{path}/3_months_validity_and_reliability.csv"
 
-outcome_type = "ESMAC"
+outcome_type = "no"
 children_type = "TD"
 
 if outcome_type == "ESMAC":
@@ -38,10 +39,11 @@ if outcome_type == "ESMAC":
     ellipsoid_size_extract = True
 elif children_type == "TD":
     point_of_vue = False
-    outcome_path = os.path.join(path, "Outcome_v2_TD")
+    outcome_path = os.path.join(path, "Outcome_v2bis_TD")
     result_file = os.path.join(path, "resultats_v2_TD.mat")
     ankle_high_distance_mean = False
     ellipsoid_size_extract = False
+    kinematics_by_baby = defaultdict(dict)
 
 elif children_type == "HR":
     point_of_vue = False
@@ -49,6 +51,7 @@ elif children_type == "HR":
     result_file = os.path.join(path, "resultats_v2_HR.mat")
     ankle_high_distance_mean = False
     ellipsoid_size_extract = False
+    kinematics_by_baby = defaultdict(dict)
 
 else:
     raise ValueError(f"Unknown outcome_type {outcome_type} or children_type: {children_type}")
@@ -83,7 +86,12 @@ data_correlation_all_duration_row = []
 data_correlation_union_row = []
 data_correlation_intersection_row = []
 data_wrist_mouv_row = []
-
+data_marker_concatenate_per_bambi_velocity_row = []
+data_marker_concatenate_per_supine_velocity_row = []
+data_marker_concatenate_per_bambi_acceleration_row = []
+data_marker_concatenate_per_supine_acceleration_row = []
+data_marker_concatenate_per_bambi_jerk_row = []
+data_marker_concatenate_per_supine_jerk_row = []
 
 hip_add_all = []
 hip_flex_all = []
@@ -111,6 +119,8 @@ ank_mouv_path = os.path.join(outcome_path, "ank_mouv")
 marker_movement_path = os.path.join(outcome_path, "marker_movement")
 correlation_path = os.path.join(outcome_path, "correlation")
 wrist_mouv_path = os.path.join(outcome_path, "wrist_mouv")
+concatenate_per_bambi_path = os.path.join(outcome_path, "concatenate_per_bambi")
+concatenate_per_supine_path = os.path.join(outcome_path, "concatenate_per_supine")
 
 mat_file_interval = {}
 
@@ -126,7 +136,9 @@ for folder in [
     ank_mouv_path,
     marker_movement_path,
     correlation_path,
-    wrist_mouv_path
+    wrist_mouv_path,
+    concatenate_per_bambi_path,
+    concatenate_per_supine_path,
 ]:
     os.makedirs(folder, exist_ok=True)
 
@@ -136,12 +148,25 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         #continue
 
     bambi_indiv_interval = {}
+    kinematics_by_marker = {}
+    #if bambiID != "BAMBI043_3M_Supine1_MC":
+       #continue
 
-    # if bambiID != "BAMBI035":
-       # continue
+    garder = {
+        "BAMBI050_3M_Supine1_cropped_LH",
+        "BAMBI050_3M_Supine3_cropped_LH",
+        "BAMBI051_3M_Supine1_cropped_LH_A",
+        "BAMBI051_3M_Supine1_cropped_LH_B",
+        "BAMBI051_3M_Supine1_cropped_LH_C",
+        "BAMBI051_3M_Supine2_cropped_LH_A",
+        "BAMBI051_3M_Supine2_cropped_LH_B",
+        "BAMBI051_3M_Supine2_cropped_LH_C",
+    }
+    if bambiID not in garder:
+        continue
+
     print(f"{bambiID} is running")
     bambi_name = bambiID.split("_", 1)[0]
-
     laterality = results_struct[bambiID]["laterality"][0][0][0][0][0]
 
     time_duration = results_struct[bambiID]["time_duration"][0][0][0]
@@ -314,6 +339,12 @@ for i, bambiID in enumerate(results_struct.dtype.names):
             marker_name=marker_name,
             type_value="jerk",
         )
+
+        kinematics_by_marker[marker_name] = {
+            "velocity": marker_vel,
+            "acceleration": marker_acc,
+            "jerk": marker_jerk,
+        }
 
 
     ## Leg adduction flexion
@@ -868,6 +899,125 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     data_wrist_mouv_row.append(wrist_mouv_row)
 
     mat_file_interval[bambiID] = bambi_indiv_interval
+    kinematics_by_baby[bambiID] = kinematics_by_marker
+
+bambi_unique_ID = sorted({run_id.split('_', 1)[0] for run_id in kinematics_by_baby})
+
+marker_to_velocity_compute = [
+    "RWRA", "LWRA", "RANK", "LANK", "RKNE", "LKNE", "RELB", "LELB"
+]
+
+## Concatenate per bambi
+
+collector_by_metric_per_bambi = {
+    "velocity": data_marker_concatenate_per_bambi_velocity_row,
+    "acceleration": data_marker_concatenate_per_bambi_acceleration_row,
+    "jerk": data_marker_concatenate_per_bambi_jerk_row,
+}
+
+metrics = ("velocity", "acceleration", "jerk")
+pattern = None
+
+for bambi_unique in bambi_unique_ID:
+    # One row per metric
+    rows = {m: {"bambiID": bambi_unique} for m in metrics}
+    # First successful concatenation length per metric (for N_frames)
+    n_frames = {m: None for m in metrics}
+
+    for marker_to_compute in marker_to_velocity_compute:
+        for metric in metrics:
+            try:
+                # Concatenate ALL runs for the subject (ignore Supine grouping)
+                res = concat_marker_metric_for_subject(
+                    kinematics_by_baby,
+                    subject_root=bambi_unique,
+                    marker=marker_to_compute,
+                    metric=metric,
+                    mode="subject",
+                    include_pattern=pattern
+                )
+            except Exception:
+                # Skip this marker/metric if nothing found (or mismatched shapes across runs)
+                continue
+
+            arr = res["array"]  # shape: (T_total, F)
+
+            # Keep N_frames once (first successful concatenation) for this metric
+            if n_frames[metric] is None:
+                n_frames[metric] = len(arr)
+
+            # Write this marker's concatenated series into the appropriate row
+            marker_outcome(
+                arr,
+                row=rows[metric],
+                marker_name=marker_to_compute,
+                type_value=metric,
+            )
+
+    # Finalize row metadata and append using the collector-by-metric
+    for metric in metrics:
+        rows[metric]["N_frames"] = 0 if n_frames[metric] is None else n_frames[metric]
+        collector_by_metric_per_bambi[metric].append(rows[metric])
+
+## Concatenate per supine
+
+collector_by_metric_per_supine = {
+    "velocity": data_marker_concatenate_per_supine_velocity_row,
+    "acceleration": data_marker_concatenate_per_supine_acceleration_row,
+    "jerk": data_marker_concatenate_per_supine_jerk_row,
+}
+
+metrics = ("velocity", "acceleration", "jerk")
+pattern = None
+
+for bambi_unique in bambi_unique_ID:
+    # One output row per Supine number and per metric
+    for metric in metrics:
+        rows_by_sup = {}  # { supine_num: row_dict }
+        nframes_by_sup = {}  # { supine_num: first successful concatenation length }
+
+        for marker_to_compute in marker_to_velocity_compute:
+            try:
+                # Concatenate PER SUPINE for this marker/metric
+                res_by_supine = concat_marker_metric_for_subject(
+                    kinematics_by_baby,
+                    subject_root=bambi_unique,
+                    marker=marker_to_compute,
+                    metric=metric,
+                    mode="subject_supine",
+                    include_pattern=pattern,
+                )
+            except Exception:
+                # Skip this marker if unavailable or shapes mismatch
+                continue
+
+            # res_by_supine: { supine_num: {'array', 'segments', 'runs_used'} }
+            for supine_num, bundle in res_by_supine.items():
+                arr = bundle["array"]  # shape: (T_total_supine, F)
+
+                # Initialize the row for this Supine if needed
+                if supine_num not in rows_by_sup:
+                    rows_by_sup[supine_num] = {
+                        "bambiID": bambi_unique,
+                        "supine": int(supine_num),
+                    }
+                    nframes_by_sup[supine_num] = len(arr)  # first valid length
+
+                # Populate columns for this marker in the Supine row
+                marker_outcome(
+                    arr,
+                    row=rows_by_sup[supine_num],
+                    marker_name=marker_to_compute,
+                    type_value=metric,
+                )
+
+        # Finalize rows for this metric and append to the right collector
+        for supine_num in sorted(rows_by_sup.keys()):
+            row = rows_by_sup[supine_num]
+            row["N_frames"] = nframes_by_sup.get(supine_num, 0)
+            collector_by_metric_per_supine[metric].append(row)
+
+
 
 mat_interval_path = os.path.join(outcome_path, 'interval_outcomes.mat')
 
@@ -929,7 +1079,12 @@ data_map = {
     "correlation_intersection": (data_correlation_intersection_row, correlation_path),
     "correlation_union": (data_correlation_union_row, correlation_path),
     "wrist_mouv": (data_wrist_mouv_row, wrist_mouv_path),
-
+    "per_bambi_velocity": (data_marker_concatenate_per_bambi_velocity_row, concatenate_per_bambi_path),
+    "per_bambi_acceleration": (data_marker_concatenate_per_bambi_acceleration_row, concatenate_per_bambi_path),
+    "per_bambi_jerk": (data_marker_concatenate_per_bambi_jerk_row, concatenate_per_bambi_path),
+    "per_supine_velocity": (data_marker_concatenate_per_supine_velocity_row, concatenate_per_supine_path),
+    "per_supine_acceleration": (data_marker_concatenate_per_supine_acceleration_row, concatenate_per_supine_path),
+    "per_supine_jerk": (data_marker_concatenate_per_supine_jerk_row, concatenate_per_supine_path),
 }
 
 # 5) Write one CSV per folder
