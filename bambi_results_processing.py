@@ -29,7 +29,7 @@ path = "/Users/mathieubourgeois/Documents/BAMBI_Data"
 anthropo_file = f"{path}/3_months_validity_and_reliability.csv"
 
 outcome_type = "no"
-children_type = "TD"
+children_type = "HR"
 
 if outcome_type == "ESMAC":
     point_of_vue = True
@@ -50,7 +50,7 @@ elif children_type == "TD":
 
 elif children_type == "HR":
     point_of_vue = False
-    outcome_path = os.path.join(path, "Outcome_v2_HR")
+    outcome_path = os.path.join(path, "Outcome_v2bis_HR")
     result_file = os.path.join(path, "resultats_v2_HR.mat")
     ankle_high_distance_mean = False
     ellipsoid_size_extract = False
@@ -157,18 +157,6 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     #if bambiID != "BAMBI043_3M_Supine1_MC":
        #continue
 
-    garder = {
-        "BAMBI050_3M_Supine1_cropped_LH",
-        "BAMBI050_3M_Supine3_cropped_LH",
-        "BAMBI051_3M_Supine1_cropped_LH_A",
-        "BAMBI051_3M_Supine1_cropped_LH_B",
-        "BAMBI051_3M_Supine1_cropped_LH_C",
-        "BAMBI051_3M_Supine2_cropped_LH_A",
-        "BAMBI051_3M_Supine2_cropped_LH_B",
-        "BAMBI051_3M_Supine2_cropped_LH_C",
-    }
-    if bambiID not in garder:
-        continue
 
     print(f"{bambiID} is running")
     bambi_name = bambiID.split("_", 1)[0]

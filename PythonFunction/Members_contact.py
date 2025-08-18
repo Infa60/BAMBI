@@ -57,7 +57,10 @@ def distance_foot_foot(
 
     # 4.2. Analyze timing and duration of plantar plantar contact intervals
     plantar_plantar_contact_outcomes = analyze_intervals_duration(
-        plantar_plantar_contact_intervals, time_vector
+        plantar_plantar_contact_intervals,
+        time_vector,
+        distance_foot_foot,
+        reverse_from_threshold=threshold_ankle
     )
 
     # 5. Optional plot
