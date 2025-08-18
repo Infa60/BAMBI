@@ -263,11 +263,12 @@ def plot_ellipsoid_scene(marker_dict, stickman_connections, pca, threshold, mean
         ax.plot([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], color="black", linewidth=2)
 
     # Optional points
-    if inside_point and points is not None and len(points) > 0:
-        ax.scatter(points[:, 0], points[:, 1], points[:, 2], color="blue", label="All points")
-    if outside_point and enclosed_points is not None and len(enclosed_points) > 0:
+    if inside_point and enclosed_points is not None and len(enclosed_points) > 0:
         ax.scatter(enclosed_points[:, 0], enclosed_points[:, 1], enclosed_points[:, 2],
                    color="green", label="Inside ellipsoid")
+    if outside_point and points is not None and len(points) > 0:
+        ax.scatter(points[:, 0], points[:, 1], points[:, 2], color="blue", alpha=0.25, label="All points")
+
 
     # Generate ellipsoid
     u, v = np.mgrid[0:2 * np.pi:30j, 0:np.pi:20j]
@@ -277,7 +278,9 @@ def plot_ellipsoid_scene(marker_dict, stickman_connections, pca, threshold, mean
     ellipsoid_unit = np.stack((x, y, z), axis=-1)
     axes_lengths = np.sqrt(pca.explained_variance_ * threshold)
     ellipsoid_scaled = ellipsoid_unit * axes_lengths
-    ellipsoid_rotated = np.einsum("ijk,lk->ijl", ellipsoid_scaled, pca.components_)
+    # ellipsoid_rotated = np.einsum("ijk,lk->ijl", ellipsoid_scaled, pca.components_)
+    ellipsoid_rotated = np.einsum("ijk,kl->ijl", ellipsoid_scaled, pca.components_)
+
     x_e = ellipsoid_rotated[..., 0] + mean[0]
     y_e = ellipsoid_rotated[..., 1] + mean[1]
     z_e = ellipsoid_rotated[..., 2] + mean[2]

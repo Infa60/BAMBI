@@ -20,7 +20,7 @@ from PythonFunction.Quantity_movement import *
 from PythonFunction.Correlation import *
 
 # Set matplotlib backend
-#matplotlib.use("TkAgg")
+matplotlib.use("TkAgg")
 
 # Set path and load .mat file
 path = "/Users/mathieubourgeois/Documents/BAMBI_Data"
@@ -32,7 +32,7 @@ children_type = "TD"
 
 if outcome_type == "ESMAC":
     point_of_vue = True
-    outcome_path = os.path.join(path, "Outcome_v2_ESMAC")
+    outcome_path = os.path.join(path, "Outcome_v2bis_ESMAC")
     result_file = os.path.join(path, "resultats_v2_ESMAC.mat")
     ankle_high_distance_mean = True
     ellipsoid_size_extract = True
@@ -137,8 +137,8 @@ for i, bambiID in enumerate(results_struct.dtype.names):
 
     bambi_indiv_interval = {}
 
-    # if bambiID != "BAMBI004_3M_Supine1_LH":
-    #    continue
+    # if bambiID != "BAMBI035":
+       # continue
     print(f"{bambiID} is running")
     bambi_name = bambiID.split("_", 1)[0]
 
@@ -461,7 +461,7 @@ for i, bambiID in enumerate(results_struct.dtype.names):
         LSHD=LSHD,
         RSHD=RSHD,
         interactive=False,
-        inside_point=False,
+        inside_point=True,
         outside_point=False,
         second_point_of_vue=point_of_vue,
     )
@@ -620,9 +620,9 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     wrist_mouv_row["R_volume_90 (cm3)"] = stats_right_wrist_ellipsoid["volume_90"]
 
     if ellipsoid_size_extract:
-        ank_mouv_row["medio_lateral_right_ellipsoid_length (cm)"] = ellipsoid_size_right_wrist[0]
-        ank_mouv_row["antero_posterior_right_ellipsoid_length (cm)"] = ellipsoid_size_right_wrist[1]
-        ank_mouv_row["vertical_ellipsoid_right_length (cm)"] = ellipsoid_size_right_wrist[2]
+        wrist_mouv_row["medio_lateral_right_ellipsoid_length (cm)"] = ellipsoid_size_right_wrist[0]
+        wrist_mouv_row["antero_posterior_right_ellipsoid_length (cm)"] = ellipsoid_size_right_wrist[1]
+        wrist_mouv_row["vertical_ellipsoid_right_length (cm)"] = ellipsoid_size_right_wrist[2]
 
     stats_left_wrist_ellipsoid, ellipsoid_size_left_wrist = plot_ellipsoid_and_points_stickman(
         LWRA,
@@ -659,9 +659,9 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     wrist_mouv_row["L_volume_90 (cm3)"] = stats_left_wrist_ellipsoid["volume_90"]
 
     if ellipsoid_size_extract:
-        ank_mouv_row["medio_lateral_left_ellipsoid_length (cm)"] = ellipsoid_size_left_wrist[0]
-        ank_mouv_row["antero_posterior_left_ellipsoid_length (cm)"] = ellipsoid_size_left_wrist[1]
-        ank_mouv_row["vertical_ellipsoid_left_length (cm)"] = ellipsoid_size_left_wrist[2]
+        wrist_mouv_row["medio_lateral_left_ellipsoid_length (cm)"] = ellipsoid_size_left_wrist[0]
+        wrist_mouv_row["antero_posterior_left_ellipsoid_length (cm)"] = ellipsoid_size_left_wrist[1]
+        wrist_mouv_row["vertical_ellipsoid_left_length (cm)"] = ellipsoid_size_left_wrist[2]
 
     ## Head rotation
     # head_rotation(CSHD, FSHD, LSHD, RSHD, LSHO, RSHO, LPEL, RPEL, threshold=(-5, 5), time_vector=time_duration, plot=False)
