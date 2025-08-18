@@ -581,6 +581,13 @@ for i, bambiID in enumerate(results_struct.dtype.names):
     )
     foot_outcomes_total.append(foot_foot_contact_outcomes)
 
+    add_contact_metrics(
+        dest=foot_foot_row,
+        prefix="plantar_plantar_contact",
+        durations_per_event=plantar_plantar_contact_outcomes["durations_per_event"],
+        amplitude_per_event=plantar_plantar_contact_outcomes["amplitude_per_event"],
+    )
+
     ## Hand-foot contact
     hand_foot_contact_outcomes = distance_hand_foot(
         LANK,
